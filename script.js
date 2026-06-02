@@ -1671,34 +1671,34 @@ function initPracticeSection() {
 
   // Search bar
   const searchInput = document.getElementById("searchInput");
-const clearBtn = document.getElementById("clearSearchBtn");
+  const clearBtn = document.getElementById("clearSearchBtn");
 
-if (searchInput) {
-  searchInput.addEventListener("input", (e) => {
-    const value = e.target.value.toLowerCase();
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      const value = e.target.value.toLowerCase();
 
-    renderProblems(currentFilter, value);
+      renderProblems(currentFilter, value);
 
-    // Show/hide clear button
-    if (value.length > 0) {
-      clearBtn.classList.add("visible");
-    } else {
+      // Show/hide clear button
+      if (value.length > 0) {
+        clearBtn.classList.add("visible");
+      } else {
+        clearBtn.classList.remove("visible");
+      }
+    });
+  }
+
+  // Clear search functionality
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      searchInput.value = "";
       clearBtn.classList.remove("visible");
-    }
-  });
-}
 
-// Clear search functionality
-if (clearBtn) {
-  clearBtn.addEventListener("click", () => {
-    searchInput.value = "";
-    clearBtn.classList.remove("visible");
+      renderProblems(currentFilter, "");
 
-    renderProblems(currentFilter, "");
-
-    searchInput.focus();
-  });
-}
+      searchInput.focus();
+    });
+  }
 
   // Initial render
   renderProblems("all");
@@ -2202,6 +2202,8 @@ function updateXPBar() {
   }, 300);
 }
 
+let lastQuestion = "";
+
 // ===== CHATBOT =====
 function initChatbot() {
   const toggle = document.getElementById("chatbotToggle");
@@ -2224,14 +2226,43 @@ function initChatbot() {
     const message = input.value.trim();
     if (!message) return;
 
-    addChatMessage(message, "user");
+    // Add user message
+    addChatMessage(`<p>${message}</p>`, "user");
+
+    // Store previous question
+    lastQuestion = message;
+
+    // Clear input
     input.value = "";
+
+    // Loading indicator
+    const loadingEl = document.createElement("div");
+    loadingEl.className = "message bot loading";
+
+    loadingEl.innerHTML = `
+    <p>⏳ Algo Assistant is typing...</p>
+  `;
+
+    const messagesContainer = document.getElementById("chatbotMessages");
+
+    messagesContainer.appendChild(loadingEl);
+
+    messagesContainer.scrollTo({
+      top: messagesContainer.scrollHeight,
+      behavior: "smooth",
+    });
 
     // Simulate bot response
     setTimeout(() => {
+      // Remove loading
+      loadingEl.remove();
+
+      // Generate response
       const response = getBotResponse(message);
+
+      // Add bot response
       addChatMessage(response, "bot");
-    }, 800);
+    }, 1000);
   }
 
   send.addEventListener("click", sendMessage);
@@ -2252,7 +2283,7 @@ function addChatMessage(message, sender) {
   const messagesContainer = document.getElementById("chatbotMessages");
   const messageEl = document.createElement("div");
   messageEl.className = `message ${sender}`;
-  messageEl.innerHTML = `<p>${message}</p>`;
+  messageEl.innerHTML = message;
   messagesContainer.appendChild(messageEl);
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
@@ -2260,13 +2291,36 @@ function addChatMessage(message, sender) {
 function getBotResponse(question) {
   const q = question.toLowerCase();
 
+  let response = chatbotResponses["default"];
+
   for (const key in chatbotResponses) {
     if (q.includes(key)) {
-      return chatbotResponses[key];
+      response = chatbotResponses[key];
+      break;
     }
   }
 
-  return chatbotResponses["default"];
+  return `
+    <div class="assistant-response">
+      <h4>🧠 Problem Understanding</h4>
+      <p>${question}</p>
+
+      <h4>⚡ Approach</h4>
+      <p>${response}</p>
+
+      <h4>💻 Code Solution</h4>
+      <pre><code>
+// Example Template
+function solveProblem() {
+   // Your logic here
+}
+      </code></pre>
+
+      <h4>📊 Complexity Analysis</h4>
+      <p>Time Complexity: O(n)</p>
+      <p>Space Complexity: O(1)</p>
+    </div>
+  `;
 }
 
 // ===== SCROLL EFFECTS =====
