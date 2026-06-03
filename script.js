@@ -2169,26 +2169,48 @@ function updateBadges() {
       id: 1,
       icon: "🌟",
       name: "First Steps",
+      description: "Begin your journey",
+      criteria: "Solve 1 problem",
       earned: userProgress.completedProblems.length >= 1,
     },
-    { id: 2, icon: "🔥", name: "On Fire", earned: userProgress.streak >= 7 },
-    { id: 3, icon: "💎", name: "Diamond", earned: userProgress.xp >= 5000 },
+    {
+      id: 2,
+      icon: "🔥",
+      name: "On Fire",
+      description: "Keep the momentum going",
+      criteria: "Maintain a 7-day streak",
+      earned: userProgress.streak >= 7,
+    },
+    {
+      id: 3,
+      icon: "💎",
+      name: "Diamond",
+      description: "Reach a major XP milestone",
+      criteria: "Earn 5,000 XP",
+      earned: userProgress.xp >= 5000,
+    },
     {
       id: 4,
       icon: "🚀",
       name: "Rocket",
+      description: "Speed through problems",
+      criteria: "Solve 50 problems",
       earned: userProgress.completedProblems.length >= 50,
     },
     {
       id: 5,
       icon: "👑",
       name: "Master",
+      description: "Achieve expert problem-solving",
+      criteria: "Solve 100 problems",
       earned: userProgress.completedProblems.length >= 100,
     },
     {
       id: 6,
       icon: "🎯",
       name: "Sharpshooter",
+      description: "Hit the target with consistency",
+      criteria: "Solve 25 problems and earn 2,500 XP",
       earned:
         userProgress.completedProblems.length >= 25 && userProgress.xp >= 2500,
     },
@@ -2198,9 +2220,13 @@ function updateBadges() {
   container.innerHTML = badges
     .map(
       (badge) =>
-        `<div class="badge ${badge.earned ? "" : "locked"}">
+        `<div class="badge ${badge.earned ? "" : "locked"}" tabindex="0" aria-label="${badge.name}: ${badge.description}. ${badge.criteria}">
             ${badge.icon}
-            <span class="badge-tooltip">${badge.name}</span>
+            <span class="badge-tooltip">
+              <strong>${badge.name}</strong>
+              <span>${badge.description}</span>
+              <span>${badge.criteria}</span>
+            </span>
         </div>`,
     )
     .join("");
@@ -2209,9 +2235,13 @@ function updateBadges() {
   grid.innerHTML = badges
     .map(
       (badge) =>
-        `<div class="badge-lg ${badge.earned ? "" : "locked"}">
+        `<div class="badge-lg ${badge.earned ? "" : "locked"}" tabindex="0" aria-label="${badge.name}: ${badge.description}. ${badge.criteria}">
             ${badge.icon}
-            <span class="badge-tooltip">${badge.name}</span>
+            <span class="badge-tooltip">
+              <strong>${badge.name}</strong>
+              <span>${badge.description}</span>
+              <span>${badge.criteria}</span>
+            </span>
         </div>`,
     )
     .join("");
