@@ -968,7 +968,13 @@ let userProgress = {
   name: "Learner",
   avatar: "🚀",
   completedProblems: [],
+
+  favoriteProblems: [],//here i have added a new property to store the user's favorite problems
+  recentProblems: [], //here i have added a new property to store the user's recent problems
+
   favoriteProblems: [], //here i have added a new property to store the user's favorite problems
+  problemNotes: {},
+
   xp: 0,
   level: 1,
   streak: 0,
@@ -2072,6 +2078,7 @@ function updateDashboard() {
 
   updateActivityList();
   updateBadges();
+  updateRecentProblems(); // Recently Viewed Problems
   updateLeaderboard();
 }
 
@@ -2105,6 +2112,52 @@ function updateActivityList() {
     `,
     )
     .join("");
+}
+// ===== RECENTLY VIEWED PROBLEMS ===== //
+function updateRecentProblems() {
+  const container = document.getElementById("recentProblemsList");
+
+  if (!container) return;
+
+  if (
+    !userProgress.recentProblems ||
+    userProgress.recentProblems.length === 0
+  ) {
+    container.innerHTML =
+      "<p>No recently viewed problems</p>";
+    return;
+  }
+
+  container.innerHTML = userProgress.recentProblems
+    .map((id) => {
+      const problem = practiceProblems.find(
+        (p) => p.id === id
+      );
+
+      if (!problem) return "";
+
+      return `
+        <div class="recent-problem" data-id="${problem.id}">
+          ${problem.title}
+        </div>
+      `;
+    })
+    .join("");
+
+  container.querySelectorAll(".recent-problem")
+    .forEach((item) => {
+      item.addEventListener("click", () => {
+        const problemId = parseInt(item.dataset.id);
+
+        const problem = practiceProblems.find(
+          (p) => p.id === problemId
+        );
+
+        if (problem) {
+          openQuizEditor(problem);
+        }
+      });
+    });
 }
 
 function updateBadges() {
@@ -2519,6 +2572,9 @@ function loadUserData() {
       if (!userProgress.quizScores) {
         userProgress.quizScores = {};
       }
+        if (!userProgress.recentProblems) {
+          userProgress.recentProblems = [];
+      }
 
       // Update streak if user was active yesterday
       if (userProgress.lastActive) {
@@ -2838,7 +2894,29 @@ function handleProblemClick(problemId) {
   const problem = practiceProblems.find((p) => p.id === problemId);
   if (problem) {
     openQuizEditor(problem);
+    addRecentProblem(problemId);
   }
+}
+// ===== Made addRecentProblem() Function =====
+function addRecentProblem(problemId) {
+  if (!userProgress.recentProblems) {
+    userProgress.recentProblems = [];
+  }
+
+  // Remove existing occurrence
+  userProgress.recentProblems =
+    userProgress.recentProblems.filter(
+      (id) => id !== problemId
+    );
+
+  // Add to beginning
+  userProgress.recentProblems.unshift(problemId);
+
+  // Keep only last 5
+  userProgress.recentProblems =
+    userProgress.recentProblems.slice(0, 5);
+
+  saveUserData();
 }
 
 // ===== SYNTAX HIGHLIGHTING =====

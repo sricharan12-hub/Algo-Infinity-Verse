@@ -807,6 +807,24 @@ body {
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
 }
+/* ===== RECENTLY VIEWED PROBLEMS ===== */
+
+.recent-problem {
+  padding: 10px 12px;
+  margin: 8px 0;
+  border-radius: 8px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.recent-problem:hover {
+  transform: translateX(5px);
+}
+
+.recent-problem:not(:last-child) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
 
 .problem-card:hover {
   transform: translateY(-5px);
