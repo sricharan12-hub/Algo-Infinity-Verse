@@ -2163,12 +2163,12 @@ function renderProblems(filter = "all", searchQuery = "") {
 data-id="${problem.id}">
         <i class="fas fa-heart"></i>
     </button>
-
                <button class="notes-btn ${
-                 userProgress.problemNotes[problem.id] ? "active" : ""
-               }" data-id="${problem.id}">
-                 <i class="fas fa-sticky-note"></i>
-               </button>
+      userProgress.problemNotes[problem.id] ? "has-notes" : ""
+    }" data-id="${problem.id}">
+  <i class="fas fa-sticky-note"></i>
+</button>
+
 
                  <span class="difficulty-badge ${getDifficultyClass(problem.difficulty)}">${problem.difficulty}</span>
              </div>
