@@ -1,6 +1,6 @@
 /**
- * javascript-learning.js
- * Interactivity for the JavaScript Learning page:
+ * powerbi-learning.js
+ * Interactivity for the Power BI Learning page:
  *  - Hero typing animation
  *  - Stats counter animation (uses global animateValue from script.js)
  *  - Sidebar scroll-spy (active link tracking)
@@ -22,19 +22,19 @@ document.addEventListener("DOMContentLoaded", () => {
    Hero Typing Animation
    ───────────────────────────────────────────── */
 function initHeroTyping() {
-  const el = document.getElementById("typingTextJavascript");
+  const el = document.getElementById("typingTextPowerBI");
   if (!el) return;
 
   const words = [
-    "Variables",
-    "Data Types",
-    "Operators",
-    "Conditionals",
-    "Loops",
-    "Functions",
-    "Arrays & Objects",
-    "DOM Manipulation",
-    "Event Handling",
+    "Data Import",
+    "Power Query",
+    "Data Modeling",
+    "Star Schema",
+    "DAX Formulas",
+    "Visualizations",
+    "Slicers & Filters",
+    "Dashboards",
+    "Publishing & Sharing",
   ];
 
   let wordIdx = 0;
@@ -107,7 +107,7 @@ function initStatsAnimation() {
    Exercise Show/Hide Toggle
    ───────────────────────────────────────────── */
 function initExerciseToggles() {
-  document.querySelectorAll(".js-exercise-toggle").forEach((btn) => {
+  document.querySelectorAll(".pbi-exercise-toggle").forEach((btn) => {
     btn.addEventListener("click", () => {
       const targetId = btn.getAttribute("aria-controls");
       const solution = document.getElementById(targetId);
@@ -124,7 +124,7 @@ function initExerciseToggles() {
    Copy Code Button
    ───────────────────────────────────────────── */
 function initCopyButtons() {
-  document.querySelectorAll(".js-code-copy").forEach((btn) => {
+  document.querySelectorAll(".pbi-code-copy").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const code = btn.getAttribute("data-code");
       if (!code) return;
@@ -164,8 +164,8 @@ function initCopyButtons() {
    Uses a scroll listener for reliable, real-time tracking.
    ───────────────────────────────────────────── */
 function initSidebarSpy() {
-  const links = document.querySelectorAll(".js-sidebar-nav a");
-  const lessons = document.querySelectorAll(".js-lesson");
+  const links = document.querySelectorAll(".pbi-sidebar-nav a");
+  const lessons = document.querySelectorAll(".pbi-lesson");
   if (!links.length || !lessons.length) return;
 
   const NAV_HEIGHT = 80; // offset for fixed navbar
@@ -198,7 +198,7 @@ function initSidebarSpy() {
       if (id) {
         links.forEach((l) => l.classList.remove("active"));
         const active = document.querySelector(
-          `.js-sidebar-nav a[href="#${id}"]`
+          `.pbi-sidebar-nav a[href="#${id}"]`
         );
         if (active) active.classList.add("active");
       }
@@ -216,11 +216,11 @@ function initSidebarSpy() {
    Stored in localStorage for persistence.
    ───────────────────────────────────────────── */
 function initProgressTracker() {
-  const STORAGE_KEY = "javascript-learning-progress";
+  const STORAGE_KEY = "powerbi-learning-progress";
   const TOTAL_TOPICS = 12;
   const fill = document.getElementById("progressFill");
   const count = document.getElementById("progressCount");
-  const bar = document.querySelector(".js-progress-bar");
+  const bar = document.querySelector(".pbi-progress-bar");
 
   if (!fill || !count) return;
 
@@ -243,7 +243,7 @@ function initProgressTracker() {
   updateUI();
 
   // Observe lessons entering viewport
-  const lessons = document.querySelectorAll(".js-lesson");
+  const lessons = document.querySelectorAll(".pbi-lesson");
   const observer = new IntersectionObserver(
     (entries) => {
       let changed = false;

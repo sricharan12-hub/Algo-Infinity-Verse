@@ -376,6 +376,7 @@ function resolveStaticPath(pathname) {
     "/community": "community.html",
     "/python-learning": "python-learning.html",
     "/javascript-learning": "javascript-learning.html",
+    "/powerbi-learning": "powerbi-learning.html",
     "/support-page": "support-page/index.html",
     "/support-page/": "support-page/index.html",
   };

@@ -24,6 +24,10 @@
     {
       "source": "/javascript-learning",
       "destination": "/javascript-learning.html"
+    },
+    {
+      "source": "/powerbi-learning",
+      "destination": "/powerbi-learning.html"
     }
   ],
   "headers": [
