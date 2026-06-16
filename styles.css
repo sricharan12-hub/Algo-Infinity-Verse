@@ -7027,7 +7027,7 @@ body.light-mode .nav-auth-link:hover {
 
 .level-selection-card.locked {
   opacity: 0.5;
-  cursor: pointer;
+  cursor: not-allowed;
   filter: grayscale(50%);
 }
 

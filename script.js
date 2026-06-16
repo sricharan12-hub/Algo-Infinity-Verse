@@ -6945,6 +6945,25 @@ function showLockedMessage(xpRequired) {
     `🔒 You need ${xpRequired.toLocaleString()} XP to unlock this level! Keep playing! 💪`,
     "info"
   );
+  const level = userProgress.level || 1;
+  const levelNames = ["Beginner","Novice","Intermediate","Advanced","Expert","Master","Grandmaster","Legend"];
+  const topicNames = ["arrays","strings","linkedlist","trees","graphs","dp","arrays","strings"];
+
+  // Temporarily set level for game
+  currentGame.selectedLevel = level;
+  currentGame.selectedTopic = topicNames[level - 1];
+
+  document.getElementById("gameModalTitle").textContent =
+    `🎮 Level ${level} - ${levelNames[level-1]} Games`;
+
+  showGameTypeSelector();
+}
+
+function showLockedMessage(xpRequired) {
+  showNotification(
+    `🔒 You need ${xpRequired.toLocaleString()} XP to unlock this level! Keep playing! 💪`,
+    "info"
+  );
 }
 
 function closeGameModal() {
@@ -6964,6 +6983,17 @@ function showGameTypeSelector() {
     const el = document.getElementById(id);
     if (el) el.style.display = id === "gameTypeSelector" ? "block" : "none";
   });
+  clearInterval(currentGame.timer);
+  if (memoryState.timer) clearInterval(memoryState.timer);
+  if (codeGameState && codeGameState.timer) clearInterval(codeGameState.timer);
+}
+
+function getTopicForLevel() {
+  // Use selected level if available, otherwise use user's current level
+  const level = currentGame.selectedLevel || userProgress.level || 1;
+  document.getElementById("gameTypeSelector").style.display = "block";
+  document.getElementById("gamePlayArea").style.display = "none";
+  document.getElementById("gameResults").style.display = "none";
   clearInterval(currentGame.timer);
   if (memoryState.timer) clearInterval(memoryState.timer);
   if (codeGameState && codeGameState.timer) clearInterval(codeGameState.timer);
@@ -7385,7 +7415,7 @@ const codeCompletionQuestions = {
     {
       code: `function numIslands(grid) {\n  let count = 0;\n  for(let i=0; i<grid.length; i++) {\n    for(let j=0; j<grid[0].length; j++) {\n      if(grid[i][j] === '1') {\n        _______;\n        count++;\n      }\n    }\n  }\n  return count;\n}`,
       blank: "_______",
-      options: ["dfs(grid, i, j)", "return count", "grid[i][j] = 0", "count++"],
+      options: ["dfs(grid, i, j)", "bfs(grid, i, j)", "grid[i][j] = 0", "count++"],
       correct: 0,
       explanation: "Call DFS to mark all connected land cells as visited",
     },
