@@ -7132,3 +7132,26 @@ body.light-mode .nav-auth-link:hover {
 .btn-danger:hover {
   opacity: 0.9;
 }
+
+/* ===== LOGIN LOADING SPINNER ===== */
+.btn-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: btn-spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+
+.auth-submit[data-loading="true"] {
+  opacity: 0.85;
+  cursor: not-allowed;
+  pointer-events: none;
+}
