@@ -2145,6 +2145,61 @@ section[id] {
 #roadmapStepSubmitQuizBtn {
   margin-bottom: 1.5rem;
 }
+/* ===== OVERALL STAGES ===== */
+.overall-roadmap {
+  max-width: 900px;
+  margin: auto;
+}
+
+.overall-stage {
+  background: var(--card-bg);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 20px;
+  transition: all .3s ease;
+}
+
+.overall-stage:hover{
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(139,92,246,.25);
+}
+
+.stage-icon {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.topic-list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+}
+
+.topic-list span {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(139,92,246,.2);
+}
+
+.road-arrow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 20px 0;
+    font-size: 2rem;
+    color: #8b5cf6;
+    text-shadow: 0 0 12px rgba(139,92,246,0.7);
+}
+
+.road-arrow i {
+    transition: transform 0.3s ease;
+}
+
+.road-arrow:hover i {
+    transform: translateY(4px);
+}
 
 /* ===== INTERVIEW SECTION ===== */
 .interview-grid {

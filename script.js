@@ -1109,16 +1109,26 @@ const advancedRoadmapSteps = [
 let roadmapTabsInitialized = false;
 let currentQuizAnswers = {};
 
+/* Temporarily disabled because roadmapAdvancedTab is not present in the current HTML structure.*/
 function initRoadmap() {
   if (!roadmapTabsInitialized) {
     const basicTab = document.getElementById("roadmapBasicTab");
-    const advancedTab = document.getElementById("roadmapAdvancedTab");
+    //const advancedTab = document.getElementById("roadmapAdvancedTab");
     const overviewTab = document.getElementById("roadmapOverviewTab");
-    if (basicTab && advancedTab && overviewTab) {
-      basicTab.addEventListener("click", () => { basicTab.classList.add("active"); advancedTab.classList.remove("active"); overviewTab.classList.remove("active"); document.getElementById("basicRoadmapContainer").classList.add("active"); document.getElementById("advancedRoadmapContainer").classList.remove("active"); document.getElementById("overviewRoadmapContainer").classList.remove("active"); });
-      advancedTab.addEventListener("click", () => { advancedTab.classList.add("active"); basicTab.classList.remove("active"); overviewTab.classList.remove("active"); document.getElementById("advancedRoadmapContainer").classList.add("active"); document.getElementById("basicRoadmapContainer").classList.remove("active"); document.getElementById("overviewRoadmapContainer").classList.remove("active"); });
-      overviewTab.addEventListener("click", () => { overviewTab.classList.add("active"); basicTab.classList.remove("active"); advancedTab.classList.remove("active"); document.getElementById("overviewRoadmapContainer").classList.add("active"); document.getElementById("basicRoadmapContainer").classList.remove("active"); document.getElementById("advancedRoadmapContainer").classList.remove("active"); });
-    }
+    //if (basicTab && advancedTab && overviewTab) {
+    if (basicTab && overviewTab) {
+      basicTab.addEventListener("click", () => { basicTab.classList.add("active"); 
+        //advancedTab.classList.remove("active"); 
+        overviewTab.classList.remove("active"); 
+        document.getElementById("basicRoadmapContainer").classList.add("active"); 
+        //document.getElementById("advancedRoadmapContainer").classList.remove("active"); 
+        document.getElementById("overviewRoadmapContainer").classList.remove("active"); });
+      /*advancedTab.addEventListener("click", () => { advancedTab.classList.add("active"); basicTab.classList.remove("active"); overviewTab.classList.remove("active"); document.getElementById("advancedRoadmapContainer").classList.add("active"); document.getElementById("basicRoadmapContainer").classList.remove("active"); document.getElementById("overviewRoadmapContainer").classList.remove("active"); });*/
+      overviewTab.addEventListener("click", () => { overviewTab.classList.add("active"); basicTab.classList.remove("active"); 
+        //advancedTab.classList.remove("active"); 
+        document.getElementById("overviewRoadmapContainer").classList.add("active"); document.getElementById("basicRoadmapContainer").classList.remove("active"); 
+        //document.getElementById("advancedRoadmapContainer").classList.remove("active"); });
+    });
     const closeBtn = document.getElementById("roadmapStepModalClose");
     const closeBtn2 = document.getElementById("roadmapStepModalCloseBtn");
     const modal = document.getElementById("roadmapStepModal");
@@ -1128,7 +1138,7 @@ function initRoadmap() {
     roadmapTabsInitialized = true;
   }
   renderBasicRoadmap();
-  renderAdvancedRoadmap();
+  //renderAdvancedRoadmap();
   const progressBar = document.getElementById("roadmapProgress");
   const stages = document.querySelectorAll(".stage");
   if (progressBar && stages.length >= 3) {
@@ -1140,6 +1150,7 @@ function initRoadmap() {
       if (progress === 100) stages[2].classList.add("active");
     }, 500);
   }
+}
 }
 
 function isRoadmapStepCompleted(step) {
