@@ -43,7 +43,8 @@ const USERS_FILE = path.join(DATA_DIR, "users.json");
 const MEMORY_FILE = path.join(DATA_DIR, "memory.json");
 const TEAM_PROFILES_FILE = path.join(DATA_DIR, "team_profiles.json");
 const AUDITS_FILE = path.join(DATA_DIR, "audits_history.json");
-const SESSION_COOKIE = "aiv_session";
+const ACCESS_COOKIE = "aiv_access";
+const REFRESH_COOKIE = "aiv_refresh";
 
 const DELETION_LOG_FILE = path.join(
   DATA_DIR,
@@ -112,7 +113,7 @@ function parseCookies(cookieHeader = "") {
   }, {});
 }
 
-function sessionCookie(token, req) {
+function authCookies(token, req) {
   const secure = req.headers["x-forwarded-proto"] === "https";
   return [
     `${SESSION_COOKIE}=${encodeURIComponent(token)}`,
@@ -126,7 +127,7 @@ function sessionCookie(token, req) {
     .join("; ");
 }
 
-function clearSessionCookie() {
+function clearAuthCookies() {
   return `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
 }
 
@@ -684,6 +685,47 @@ async function handleApi(req, res, pathname) {
     return sendJson(res, 200, progress);
   }
 
+
+  if (pathname === "/api/logout" && req.method === "POST") {
+    const rToken = getRefreshToken(req);
+    if (rToken) {
+      const decoded = verifyRefreshToken(rToken);
+      if (decoded) revokeTokenFamily(decoded.familyId);
+    }
+    return sendJson(res, 200, { success: true }, { "Set-Cookie": clearAuthCookies() });
+  }
+
+  if (pathname === "/api/refresh" && req.method === "POST") {
+    const rToken = getRefreshToken(req);
+    if (!rToken) return sendJson(res, 401, { error: "No refresh token" });
+    
+    const decoded = verifyRefreshToken(rToken);
+    if (!decoded) return sendJson(res, 401, { error: "Invalid or expired refresh token" }, { "Set-Cookie": clearAuthCookies() });
+    revokeTokenFamily(decoded.familyId);
+
+    // Find user
+    const users = useFirestore ? [] : await readUsers();
+    let user;
+    if (useFirestore) {
+      user = await getUserByEmail(decoded.email);
+      if (!user) {
+        try {
+          const snapshot = await db.collection("users").doc(decoded.sub).get();
+          if (snapshot.exists) user = { ...snapshot.data(), id: snapshot.id };
+        } catch(e) {}
+      }
+    } else {
+      user = users.find(u => u.id === decoded.sub);
+    }
+
+    if (!user) return sendJson(res, 401, { error: "User not found" }, { "Set-Cookie": clearAuthCookies() });
+
+    const accessToken = createAccessToken(user);
+    const refreshToken = createRefreshToken(user, decoded.familyId);
+    
+    return sendJson(res, 200, { success: true }, { "Set-Cookie": authCookies(accessToken, refreshToken, req) });
+  }
+
   if (pathname === "/api/session" && req.method === "GET") {
     const session = getSession(req);
     return sendJson(res, 200, {
@@ -760,7 +802,7 @@ async function handleApi(req, res, pathname) {
       res,
       201,
       { user: { id: user.id, name: user.name, email: user.email } },
-      { "Set-Cookie": sessionCookie(token, req) },
+      { "Set-Cookie": authCookies(token, req) },
     );
   }
 
@@ -802,7 +844,7 @@ async function handleApi(req, res, pathname) {
       res,
       200,
       { user: { id: user.id, name: user.name, email: user.email } },
-      { "Set-Cookie": sessionCookie(token, req) },
+      { "Set-Cookie": authCookies(token, req) },
     );
   }
 
@@ -902,7 +944,7 @@ async function handleApi(req, res, pathname) {
       }
 
       const token = createSessionToken(user);
-      const cookie = sessionCookie(token, req);
+      const cookie = authCookies(token, req);
 
       return sendJson(res, 200, {
         authenticated: true,
@@ -1000,7 +1042,7 @@ async function handleApi(req, res, pathname) {
         "Password updated successfully.",
     },
     {
-      "Set-Cookie": clearSessionCookie(),
+      "Set-Cookie": clearAuthCookies(),
     }
   );
 }
@@ -1034,7 +1076,7 @@ async function handleApi(req, res, pathname) {
     200,
     { success: true },
     {
-      "Set-Cookie": clearSessionCookie(),
+      "Set-Cookie": clearAuthCookies(),
     },
   );
 }
@@ -1120,7 +1162,7 @@ if (
     },
     {
       "Set-Cookie":
-        clearSessionCookie(),
+        clearAuthCookies(),
     }
   );
 }
@@ -1170,7 +1212,7 @@ if (pathname === "/api/forgot-password" && req.method === "POST") {
       res,
       200,
       { ok: true },
-      { "Set-Cookie": clearSessionCookie() },
+      { "Set-Cookie": clearAuthCookies() },
     );
   }
 
@@ -1861,7 +1903,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (pathname === "/logout") {
-      return redirect(res, "/login", { "Set-Cookie": clearSessionCookie() });
+      return redirect(res, "/login", { "Set-Cookie": clearAuthCookies() });
     }
 
     const authorization = authorizeRequest(req, pathname);
