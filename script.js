@@ -310,8 +310,8 @@ const practiceProblems = [
   { id: 7, title: "Longest Increasing Subsequence", difficulty: "hard", tags: ["DP", "Binary Search"], acceptance: "42.1%", category: "dp", description: "Given an integer array nums, return the length of the longest strictly increasing subsequence.", constraints: ["1 ≤ nums.length ≤ 2500", "-10⁴ ≤ nums[i] ≤ 10⁴"], followUp: "Can you improve from O(n²) DP to O(n log n) using binary search?", functionName: "lengthOfLIS", testCases: [{ input: [[10,9,2,5,3,7,101,18]], expected: 4 }, { input: [[0,1,0,3,2,3]], expected: 4 }, { input: [[7,7,7,7,7,7,7]], expected: 1 }] },
   { id: 8, title: "Word Ladder", difficulty: "hard", tags: ["Graphs", "BFS"], acceptance: "31.4%", category: "graphs", description: "Given two words, beginWord and endWord, and a dictionary wordList, return the number of words in the shortest transformation sequence.", constraints: ["1 ≤ beginWord.length ≤ 10", "endWord.length == beginWord.length", "1 ≤ wordList.length ≤ 5000"], followUp: "Can you find ALL shortest transformation sequences?", functionName: "ladderLength", params: ["beginWord", "endWord", "wordList"], guide: "beginWord: starting word to transform from\nendWord: target word to transform to\nwordList: list of dictionary words that can be used as intermediate steps\nreturns: the length of the shortest transformation sequence (integer)", testCases: [{ input: ["hit", "cog", ["hot","dot","dog","lot","log","cog"]], expected: 5 }, { input: ["hit", "cog", ["hot","dot","dog","lot","log"]], expected: 0 }, { input: ["a", "c", ["a","b","c"]], expected: 2 }] },
   { id: 9, title: "Trapping Rain Water", difficulty: "hard", tags: ["Arrays", "Two Pointers"], acceptance: "48.7%", category: "arrays", description: "Given n non-negative integers representing an elevation map where the width of each bar is 1, compute how much water it can trap after raining.", constraints: ["1 ≤ height.length ≤ 2 × 10⁴", "0 ≤ height[i] ≤ 10⁵"], followUp: "Can you solve it in O(n) time and O(1) space using the two-pointer technique?", functionName: "trap", testCases: [{ input: [[0,1,0,2,1,0,1,3,2,1,2,1]], expected: 6 }, { input: [[4,2,0,3,2,5]], expected: 9 }] },
-  { id: 10, title: "Reverse Linked List", difficulty: "easy", tags: ["Linked List"], acceptance: "72.1%", category: "linkedlist", description: "Given an array representing a linked list, reverse it and return the reversed array.", constraints: ["0 ≤ arr.length ≤ 5000", "-5000 ≤ arr[i] ≤ 5000"], followUp: "Can you solve it both iteratively and recursively?", functionName: "reverseList", testCases: [{ input: [[1,2,3,4,5]], expected: [5,4,3,2,1] }, { input: [[1,2]], expected: [2,1] }, { input: [[]], expected: [] }] },
-  { id: 11, title: "Invert Binary Tree", difficulty: "easy", tags: ["Trees", "DFS"], acceptance: "68.5%", category: "trees", description: "Given a binary tree represented as a level-order array, invert it and return the inverted level-order array.", constraints: ["0 ≤ arr.length ≤ 100", "-100 ≤ arr[i] ≤ 100"], followUp: "Can you solve it both recursively and iteratively using a queue or stack?", functionName: "invertTree", testCases: [{ input: [[4,2,7,1,3,6,9]], expected: [4,7,2,9,6,3,1] }, { input: [[2,1,3]], expected: [2,3,1] }, { input: [[]], expected: [] }] },
+  { id: 10, title: "Reverse Linked List", difficulty: "easy", tags: ["Linked List"], acceptance: "72.1%", category: "linkedlist", description: "Given an array representing a linked list, reverse it and return the reversed array.", constraints: ["0 ≤ arr.length ≤ 5000", "-5000 ≤ arr[i] ≤ 5000"], followUp: "Can you solve it both iteratively and recursively?", functionName: "reverseList", params: ["head"], guide: "head: array of integers representing the linked list values\nreturns: reversed array with elements in opposite order\n\nHint: Use two pointers (prev starts empty, curr starts at head). Iterate through, reversing each element's position.", testCases: [{ input: [[1,2,3,4,5]], expected: [5,4,3,2,1] }, { input: [[1,2]], expected: [2,1] }, { input: [[]], expected: [] }] },
+  { id: 11, title: "Invert Binary Tree", difficulty: "easy", tags: ["Trees", "DFS"], acceptance: "68.5%", category: "trees", description: "Given a binary tree represented as a level-order array, invert it and return the inverted level-order array.", constraints: ["0 ≤ arr.length ≤ 100", "-100 ≤ arr[i] ≤ 100"], followUp: "Can you solve it both recursively and iteratively using a queue or stack?", functionName: "invertTree", params: ["root"], guide: "root: level-order array of integers representing the binary tree (null for missing nodes)\nreturns: level-order array of the inverted binary tree (swapped left/right children)\n\nHint: Recursively swap left and right children at each node. Base case: when root is null or empty.", testCases: [{ input: [[4,2,7,1,3,6,9]], expected: [4,7,2,9,6,3,1] }, { input: [[2,1,3]], expected: [2,3,1] }, { input: [[]], expected: [] }] },
   { id: 12, title: "Validate BST", difficulty: "medium", tags: ["Trees", "Recursion"], acceptance: "28.4%", category: "trees", description: "Given a binary tree represented as a level-order array (null for missing children), determine if it is a valid BST.", constraints: ["1 ≤ arr.length ≤ 10⁴", "-2³¹ ≤ arr[i] ≤ 2³¹ - 1"], followUp: "Can you solve it without recursion?", functionName: "isValidBST", testCases: [{ input: [[2,1,3]], expected: true }, { input: [[5,1,4,null,null,3,6]], expected: false }] },
   { id: 13, title: "Number of Islands", difficulty: "medium", tags: ["Graphs", "DFS"], acceptance: "54.8%", category: "graphs", description: "Given an m x n 2D binary grid which represents a map of '1's (land) and '0's (water), return the number of islands.", constraints: ["1 ≤ m, n ≤ 300", "grid[i][j] is '0' or '1'"], followUp: "Can you solve it using both DFS and Union-Find?", functionName: "numIslands", testCases: [{ input: [[["1","1","1","1","0"],["1","1","0","1","0"],["1","1","0","0","0"],["0","0","0","0","0"]]], expected: 1 }, { input: [[["1","1","0","0","0"],["1","1","0","0","0"],["0","0","1","0","0"],["0","0","0","1","1"]]], expected: 3 }, { input: [[["0"]]], expected: 0 }] },
   { id: 14, title: "House Robber", difficulty: "medium", tags: ["DP", "Arrays"], acceptance: "42.3%", category: "dp", description: "You are a professional robber planning to rob houses along a street. Return the maximum amount of money you can rob without robbing two adjacent houses.", constraints: ["1 ≤ nums.length ≤ 100", "0 ≤ nums[i] ≤ 400"], followUp: "What if the houses are arranged in a circle?", functionName: "rob", testCases: [{ input: [[1,2,3,1]], expected: 4 }, { input: [[2,7,9,3,1]], expected: 12 }, { input: [[2,1,1,2]], expected: 4 }] },
@@ -2381,7 +2381,7 @@ function getDefaultCode(lang, problem) {
 }
 
 function generateExamples(problem) {
-  const examples = { 1: `<strong>Example 1:</strong><br>Input: nums = [2,7,11,15], target = 9<br>Output: [0,1]<br><br><strong>Follow-up:</strong> Can you solve it in O(n) using a Hash Map?`, 2: `<strong>Example 1:</strong><br>Input: s = "()"<br>Output: true<br><br><strong>Follow-up:</strong> Can you solve it in O(n) using a Stack?`, 3: `<strong>Example 1:</strong><br>Input: list1 = [1,2,4], list2 = [1,3,4]<br>Output: [1,1,2,3,4,4]<br><br><strong>Follow-up:</strong> Can you solve it both iteratively and recursively?`, 4: `<strong>Example 1:</strong><br>Input: nums = [-2,1,-3,4,-1,2,1,-5,4]<br>Output: 6<br><br><strong>Follow-up:</strong> Can you solve it using Kadane's Algorithm in O(n)?`, 6: `<strong>Example 1:</strong><br>Input: adjList = [[2,4],[1,3],[2,4],[1,3]]<br>Output: [[2,4],[1,3],[2,4],[1,3]]<br><br><strong>Follow-up:</strong> Can you solve it using both BFS and DFS approaches?`, 8: `<strong>Example 1:</strong><br>Input: beginWord = "hit", endWord = "cog", wordList = ["hot","dot","dog","lot","log","cog"]<br>Output: 5<br><br><strong>Explanation:</strong> "hit" → "hot" → "dot" → "dog" → "cog" (5 steps)<br><br><strong>Follow-up:</strong> Can you find ALL shortest transformation sequences using BFS + DFS?` };
+  const examples = { 1: `<strong>Example 1:</strong><br>Input: nums = [2,7,11,15], target = 9<br>Output: [0,1]<br><br><strong>Follow-up:</strong> Can you solve it in O(n) using a Hash Map?`, 2: `<strong>Example 1:</strong><br>Input: s = "()"<br>Output: true<br><br><strong>Follow-up:</strong> Can you solve it in O(n) using a Stack?`, 3: `<strong>Example 1:</strong><br>Input: list1 = [1,2,4], list2 = [1,3,4]<br>Output: [1,1,2,3,4,4]<br><br><strong>Follow-up:</strong> Can you solve it both iteratively and recursively?`, 4: `<strong>Example 1:</strong><br>Input: nums = [-2,1,-3,4,-1,2,1,-5,4]<br>Output: 6<br><br><strong>Follow-up:</strong> Can you solve it using Kadane's Algorithm in O(n)?`, 6: `<strong>Example 1:</strong><br>Input: adjList = [[2,4],[1,3],[2,4],[1,3]]<br>Output: [[2,4],[1,3],[2,4],[1,3]]<br><br><strong>Follow-up:</strong> Can you solve it using both BFS and DFS approaches?`, 7: `<strong>Example 1:</strong><br>Input: nums = [10,9,2,5,3,7,101,18]<br>Output: 4<br><br><strong>Follow-up:</strong> Can you improve from O(n²) to O(n log n) using binary search?`, 10: `<strong>Example 1:</strong><br>Input: head = [1,2,3,4,5]<br>Output: [5,4,3,2,1]<br><br><strong>Follow-up:</strong> Can you solve it both iteratively and recursively?`, 11: `<strong>Example 1:</strong><br>Input: root = [4,2,7,1,3,6,9]<br>Output: [4,7,2,9,6,3,1]<br><br><strong>Follow-up:</strong> Can you solve it both recursively and iteratively using a queue or stack?` };
   return examples[problem.id] || "<strong>Example:</strong><br>Solve this problem";
 }
 
@@ -2587,7 +2587,7 @@ function genCHarness(code, fn, tcs, isClass) {
   s += code + '\n\n';
   if (outType === 'int[]') {
     s += 'void __j(int* v, int n, char* buf) {\n  if (v == NULL) { strcpy(buf, "null"); return; }\n  buf[0] = \'[\'; int pos = 1;\n  for (int i = 0; i < n; i++) { if (i > 0) buf[pos++] = \',\'; pos += sprintf(buf + pos, "%d", v[i]); }\n  buf[pos++] = \']\'; buf[pos] = 0;\n}\n';
-    s += 'int __eq(int* a, int* b, int n) {\n  if (a == NULL && b == NULL) return 1;\n  if (a == NULL || b == NULL) return 0;\n  for (int i = 0; i < n; i++) if (a[i] != b[i]) return 0;\n  return 1;\n}\n';
+    s += 'int __eq(int* a, int* b, int n) {\n  if (n == 0) return 1;\n  if (a == NULL && b == NULL) return 1;\n  if (a == NULL || b == NULL) return 0;\n  for (int i = 0; i < n; i++) if (a[i] != b[i]) return 0;\n  return 1;\n}\n';
   }
   if (outType === 'int[][]') {
     s += 'void __j(int** v, int* sizes, int n, char* buf) {\n  if (v == NULL) { strcpy(buf, "null"); return; }\n  buf[0] = \'[\'; int pos = 1;\n  for (int i = 0; i < n; i++) {\n    if (i > 0) buf[pos++] = \',\';\n    buf[pos++] = \'[\';\n    for (int j = 0; j < sizes[i]; j++) {\n      if (j > 0) buf[pos++] = \',\';\n      pos += sprintf(buf + pos, "%d", v[i][j]);\n    }\n    buf[pos++] = \']\';\n  }\n  buf[pos++] = \']\'; buf[pos] = 0;\n}\n';
@@ -2602,7 +2602,11 @@ function genCHarness(code, fn, tcs, isClass) {
       if (j > 0) callArgs += ', ';
       if (inTypes[j] === 'int[]') {
         const arr = tcs[i].input[j];
-        callArgs += '(int[]){' + arr.map(x => x).join(',') + '}, ' + arr.length;
+        if (arr.length === 0) {
+          callArgs += 'NULL, 0';
+        } else {
+          callArgs += '(int[]){' + arr.map(x => x).join(',') + '}, ' + arr.length;
+        }
       } else if (inTypes[j] === 'int[][]') {
         const arr = tcs[i].input[j];
         if (arr.length === 0) {
@@ -2629,23 +2633,28 @@ function genCHarness(code, fn, tcs, isClass) {
     if (isClass) {
       s += '  printf("{\\"index\\":' + i + ',\\"ran\\":true,\\"passed\\":true,\\"actual\\":\\"instance\\"}");\n';
     } else if (outType === 'int[]') {
-      const expLen = Array.isArray(tcs[i].expected) ? tcs[i].expected.length : 1;
+      const exp = tcs[i].expected;
+      const expLen = Array.isArray(exp) ? exp.length : 1;
       s += '  printf("{\\"index\\":' + i + ',\\"ran\\":true,\\"passed\\":");\n';
       s += '  int* __r = ' + fn + '(' + callArgs + ');\n';
-      s += '  int __p = __eq(__r, (int[]){' + tcs[i].expected.map(x => x === null || x === undefined ? 0 : x).join(',') + '}, ' + expLen + ');\n';
-      s += '  printf(__p ? "true" : "false");\n  printf(",\\"actual\\":");\n  char __buf[256]; __j(__r, ' + expLen + ', __buf); printf("%s", __buf);\n';
+      if (expLen === 0) {
+        s += '  int __p = __eq(__r, NULL, 0);\n';
+      } else {
+        s += '  int __p = __eq(__r, (int[]){' + exp.map(x => x === null || x === undefined ? 0 : x).join(',') + '}, ' + expLen + ');\n';
+      }
+      s += '  printf(__p ? "true" : "false");\n  printf(",\\"actual\\":");\n  char __buf[256]; __j(__r, ' + expLen + ', __buf); printf("%s", __buf);\n  printf("}");\n';
     } else if (outType === 'int[][]') {
       const exp2d = tcs[i].expected;
       const expLen = exp2d.length;
       s += '  int** __r = ' + fn + '(' + callArgs + ');\n';
       if (expLen === 0) {
         s += '  int __p = 1;\n';
-        s += '  printf("true");\n  printf(",\\"actual\\":[]");\n';
+        s += '  printf("true");\n  printf(",\\"actual\\":[]");\n  printf("}");\n';
       } else {
         const expRows = exp2d.map(row => row.length === 0 ? 'NULL' : '(int[]){' + row.join(',') + '}').join(',');
         const expSizes = exp2d.map(row => row.length).join(',');
         s += '  int __p = __eq(__r, (int[]){' + expSizes + '}, ' + expLen + ', (int*[]){' + expRows + '}, (int[]){' + expSizes + '}, ' + expLen + ');\n';
-        s += '  printf(__p ? "true" : "false");\n  printf(",\\"actual\\":");\n  char __buf[1024]; __j(__r, (int[]){' + expSizes + '}, ' + expLen + ', __buf); printf("%s", __buf);\n';
+        s += '  printf(__p ? "true" : "false");\n  printf(",\\"actual\\":");\n  char __buf[1024]; __j(__r, (int[]){' + expSizes + '}, ' + expLen + ', __buf); printf("%s", __buf);\n  printf("}");\n';
       }
     } else {
       const cType = outType === 'string' ? 'char*' : 'int';
