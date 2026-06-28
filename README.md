@@ -199,7 +199,7 @@ Users can:
 | **Code Execution** | `isolated-vm` sandbox, custom `/api/execute` endpoint |
 | **AI & Parsing** | OpenAI API, Puppeteer, `pdf-parse`, `mammoth`, `csv-parse`, `js-yaml` |
 | **Email / Uploads** | Nodemailer, Multer |
-| **Build & Test** | Vite, Jest, Playwright |
+| **Build & Test** | Jest, Playwright |
 
 - ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white) **HTML5**: Semantic markup
 - ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white) **CSS3**: Custom properties, Flexbox, Grid, animations
@@ -308,7 +308,7 @@ Algo-Infinity-Verse/
 ├── seed-problems.js            # Problem database seeding utility
 ├── sdlcAdvisor.js              # SDLC recommendation engine
 ├── interceptors.js             # Request/response interceptors
-├── package.json / vite.config.js
+├── package.json
 ├── .env.example                # Environment configuration template
 │
 ├── api/                        # Server API route handlers
