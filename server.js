@@ -2180,11 +2180,21 @@ if (pathname === "/api/forgot-password" && req.method === "POST") {
     try {
       payload = await readJsonBody(req);
     } catch (err) {
-      return sendJson(res, 400, { success: false, error: "Invalid JSON body." });
+      const tooLarge = err?.message === "Request body is too large.";
+      return sendJson(res, tooLarge ? 413 : 400, {
+        success: false,
+        error: tooLarge ? "Request body is too large." : "Invalid JSON body.",
+      });
     }
 
     const { code, language, problemId } = payload;
-    if (!code || !language || !problemId) {
+    if (
+      typeof code !== "string" ||
+      !code.trim() ||
+      typeof language !== "string" ||
+      !language.trim() ||
+      !String(problemId ?? "").trim()
+    ) {
       return sendJson(res, 400, {
         success: false,
         error: "Code, language, and problemId are required",
