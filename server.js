@@ -1482,77 +1482,6 @@ if (pathname === "/api/forgot-password" && req.method === "POST") {
         );
       }
 
-      if (pathname === "/api/feedback" && req.method === "POST") {
-    const session = getSession(req);
-    let payload;
-    try {
-      payload = await readJsonBody(req);
-    } catch (err) {
-      return sendJson(res, 400, { error: "Invalid JSON body." });
-    }
-
-    const { feedbackType, subject, message } = payload;
-    if (!feedbackType || !subject || !message) {
-      return sendJson(res, 400, {
-        error: "Feedback type, subject, and message are required.",
-      });
-    }
-
-    const allowedTypes = [
-      "Suggestion",
-      "Bug Report",
-      "Feature Request",
-      "General Feedback",
-    ];
-    if (!allowedTypes.includes(feedbackType)) {
-      return sendJson(res, 400, { error: "Invalid feedback type." });
-    }
-
-    if (subject.trim().length < 3) {
-      return sendJson(res, 400, {
-        error: "Subject must be at least 3 characters long.",
-      });
-    }
-
-    if (message.trim().length < 10) {
-      return sendJson(res, 400, {
-        error: "Message must be at least 10 characters long.",
-      });
-    }
-
-    const feedbackData = {
-      userId: session ? session.sub : null,
-      userName: session ? session.name : null,
-      userEmail: session ? session.email : null,
-      feedbackType,
-      subject: subject.trim(),
-      message: message.trim(),
-      status: "new",
-      createdAt: new Date().toISOString(),
-    };
-
-    try {
-      if (useFirestore) {
-        const docRef = await db.collection("feedback").add(feedbackData);
-        feedbackData.id = docRef.id;
-      } else {
-        const feedbackFile = path.join(DATA_DIR, "feedback.json");
-        await fs.mkdir(DATA_DIR, { recursive: true });
-        let feedbackList = [];
-        try {
-          const raw = await fs.readFile(feedbackFile, "utf8");
-          feedbackList = JSON.parse(raw || "[]");
-        } catch (err) {
-          if (err.code !== "ENOENT") throw err;
-        }
-        feedbackData.id = crypto.randomUUID();
-        feedbackList.push(feedbackData);
-        await fs.writeFile(
-          feedbackFile,
-          JSON.stringify(feedbackList, null, 2) + "\n",
-        );
-      }
-
       return sendJson(res, 201, { success: true, feedback: feedbackData });
     } catch (err) {
       console.error("Error saving feedback:", err);
@@ -2246,6 +2175,41 @@ if (pathname === "/api/forgot-password" && req.method === "POST") {
     return sendJson(res, 200, { ok: true });
   }
 
+  if (pathname === "/api/predict-acceptance" && req.method === "POST") {
+    let payload;
+    try {
+      payload = await readJsonBody(req);
+    } catch (err) {
+      const tooLarge = err?.message === "Request body is too large.";
+      return sendJson(res, tooLarge ? 413 : 400, {
+        success: false,
+        error: tooLarge ? "Request body is too large." : "Invalid JSON body.",
+      });
+    }
+
+    const { code, language, problemId } = payload;
+    if (
+      typeof code !== "string" ||
+      !code.trim() ||
+      typeof language !== "string" ||
+      !language.trim() ||
+      !String(problemId ?? "").trim()
+    ) {
+      return sendJson(res, 400, {
+        success: false,
+        error: "Code, language, and problemId are required",
+      });
+    }
+
+    try {
+      const analysis = analyzeCode(code, language, problemId);
+      return sendJson(res, 200, { success: true, data: analysis });
+    } catch (error) {
+      console.error("Error predicting acceptance:", error);
+      return sendJson(res, 500, { success: false, error: error.message });
+    }
+  }
+
   return sendJson(res, 404, { error: "Not found." });
 }
 
@@ -2440,34 +2404,8 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-// ===== PREDICT ACCEPTANCE PROBABILITY =====
-app.post('/api/predict-acceptance', async (req, res) => {
-    try {
-        const { code, language, problemId } = req.body;
-        
-        if (!code || !language || !problemId) {
-            return res.status(400).json({
-                success: false,
-                error: 'Code, language, and problemId are required'
-            });
-        }
-
-        const analysis = analyzeCode(code, language, problemId);
-        
-        res.json({
-            success: true,
-            data: analysis
-        });
-        
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
-
 // ===== CODE ANALYSIS ENGINE =====
+// Used by the POST /api/predict-acceptance route in handleApi().
 function analyzeCode(code, language, problemId) {
     let score = 100;
     const risks = [];
