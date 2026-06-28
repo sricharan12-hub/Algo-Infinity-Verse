@@ -74,4 +74,4 @@ if (conn) {
   console.log('Background Audit Worker started and listening for jobs...');
 }
 
-
+export { auditWorker };
