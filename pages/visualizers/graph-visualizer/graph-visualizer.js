@@ -605,7 +605,7 @@ function initVisualizer() {
               log: `Pushed Node ${neighbor} onto Stack.`,
               queueState: [...stack],
               visitedState: [...visited],
-              pseudoCodeLine: 7
+              pseudoCodeLine: 8
             });
           }
         });
@@ -991,17 +991,15 @@ function initVisualizer() {
 
     updateLiveStructureDisplay(qState);
     
+    // Add to log panel
     if (logPanel) {
-      logPanel.innerHTML = "";
-      animationSteps.slice(0, stepIdx + 1).forEach((s) => {
-        const entry = document.createElement("div");
-        let classes = "log-entry";
-        if (s.type === 'discover') classes += " active";
-        if (s.type === 'visit') classes += " visited";
-        entry.className = classes;
-        entry.textContent = `> ${s.log}`;
-        logPanel.appendChild(entry);
-      });
+      const entry = document.createElement("div");
+      let classes = "log-entry";
+      if (step.type === 'discover') classes += " active";
+      if (step.type === 'visit') classes += " visited";
+      entry.className = classes;
+      entry.textContent = `> ${step.log}`;
+      logPanel.appendChild(entry);
       logPanel.scrollTop = logPanel.scrollHeight;
     }
 
@@ -1045,9 +1043,7 @@ function initVisualizer() {
     }
     
     if (step.type === 'visit') {
-      return algo === 'bfs'
-        ? `Dequeue the next node <strong>${step.nodeId}</strong> from the front of the Queue (FIFO) and mark it as visited. We will now explore its outgoing edges.`
-        : `Pop the next node <strong>${step.nodeId}</strong> from the Stack (LIFO) and mark it as visited. We will now explore its outgoing edges.`;
+      return `De-structure the next node <strong>${step.nodeId}</strong> from the front of the ${algo === 'bfs' ? 'Queue (FIFO)' : 'Stack (LIFO)'} and mark it as visited. We will now explore its outgoing edges.`;
     }
     
     if (step.type === 'traverse') {

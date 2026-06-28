@@ -71,6 +71,7 @@ function validateMagicBytes(buffer, mimeType) {
   return false;
 }
 const userSocketMap = new Map();
+const studyRooms = new Map();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = __dirname;
@@ -1981,6 +1982,115 @@ if (pathname === "/api/forgot-password" && req.method === "POST") {
     }
   }
 
+  // ── Collaborative Study Rooms endpoints ──────────────────────────────────
+  if (pathname === "/api/study-rooms" && req.method === "GET") {
+    const roomsList = [];
+    for (const [id, r] of studyRooms.entries()) {
+      roomsList.push({
+        id: r.id,
+        hostName: r.hostName,
+        status: r.status,
+        topic: r.config.topic,
+        difficulty: r.config.difficulty,
+        timerDuration: r.config.timerDuration,
+        maxParticipants: r.config.maxParticipants,
+        participantsCount: Object.keys(r.participants).length
+      });
+    }
+    return sendJson(res, 200, { rooms: roomsList });
+  }
+
+  if (pathname === "/api/study-rooms" && req.method === "POST") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    let body;
+    try { body = await readJsonBody(req); } catch { body = {}; }
+
+    const maxParticipants = Math.min(Math.max(parseInt(body.maxParticipants) || 4, 2), 8);
+    const timerDuration = Math.min(Math.max(parseInt(body.timerDuration) || 600, 60), 1800);
+    const difficulty = ["Easy", "Medium", "Hard"].includes(body.difficulty) ? body.difficulty : "Medium";
+    const topic = body.topic || "arrays";
+
+    const roomId = "ROOM-" + Math.floor(10000 + Math.random() * 90000);
+    
+    let hostName = "Host";
+    const users = await readUsers();
+    const hostUser = users.find(u => u.id === session.sub);
+    if (hostUser) hostName = hostUser.name || hostUser.email;
+
+    const newRoom = {
+      id: roomId,
+      hostId: session.sub,
+      hostName: hostName,
+      config: {
+        maxParticipants,
+        timerDuration,
+        difficulty,
+        topic,
+        problems: []
+      },
+      status: "lobby",
+      participants: {},
+      currentProblem: null,
+      timerSeconds: 0,
+      timerInterval: null
+    };
+
+    studyRooms.set(roomId, newRoom);
+    return sendJson(res, 201, { roomId, room: { id: roomId, hostName, status: "lobby" } });
+  }
+
+  if (pathname.startsWith("/api/study-rooms/") && pathname.endsWith("/results") && req.method === "POST") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    const match = pathname.match(/^\/api\/study-rooms\/([^/]+)\/results$/);
+    if (!match) return sendJson(res, 400, { error: "Invalid path." });
+    const roomId = match[1];
+
+    let body;
+    try { body = await readJsonBody(req); } catch { body = {}; }
+
+    const { topic, difficulty, score = 50 } = body;
+
+    try {
+      if (useFirestore) {
+        await db.collection("users").doc(session.sub).collection("studyRoomResults").add({
+          roomId,
+          topic,
+          difficulty,
+          score,
+          completedAt: new Date().toISOString()
+        });
+
+        const userRef = db.collection("users").doc(session.sub);
+        const userSnap = await userRef.get();
+        if (userSnap.exists) {
+          const curStreak = userSnap.data().streak || 0;
+          await userRef.update({
+            totalXp: FieldValue.increment(score),
+            streak: curStreak + 1,
+            lastActive: new Date().toISOString()
+          });
+        }
+      } else {
+        const users = await readUsers();
+        const idx = users.findIndex(u => u.id === session.sub);
+        if (idx !== -1) {
+          users[idx].xp = (users[idx].xp || 0) + score;
+          users[idx].streak = (users[idx].streak || 0) + 1;
+          users[idx].lastActive = new Date().toISOString();
+          await writeUsers(users);
+        }
+      }
+      return sendJson(res, 200, { success: true, xpAwarded: score });
+    } catch (err) {
+      console.error("Error saving study room results:", err);
+      return sendJson(res, 500, { error: "Failed to persist results." });
+    }
+  }
+
   // ── Battle routes ──────────────────────────────────────────────────────────
   // All battle routes require Firestore. If useFirestore is false (local dev
   // with no Firebase env vars), we return 503 rather than crashing.
@@ -2516,6 +2626,42 @@ function getSummary(score) {
 // --- PHASE 1 ADDITION: SOCKET.IO LOGIC ---
 const io = new SocketIOServer(server);
 
+function serializeRoom(room) {
+  return {
+    id: room.id,
+    hostId: room.hostId,
+    hostName: room.hostName,
+    config: room.config,
+    status: room.status,
+    participants: room.participants,
+    currentProblem: room.currentProblem,
+    timerSeconds: room.timerSeconds
+  };
+}
+
+function cleanupStudyUser(socket, roomId, userId) {
+  const room = studyRooms.get(roomId);
+  if (!room) return;
+
+  delete room.participants[userId];
+  socket.leave(roomId);
+
+  const remainingCount = Object.keys(room.participants).length;
+  if (remainingCount === 0) {
+    if (room.timerInterval) clearInterval(room.timerInterval);
+    studyRooms.delete(roomId);
+    console.log(`🗑️ Study room ${roomId} deleted (empty)`);
+  } else {
+    if (room.hostId === userId) {
+      const nextHostId = Object.keys(room.participants)[0];
+      room.hostId = nextHostId;
+      room.hostName = room.participants[nextHostId].name;
+      console.log(`👑 Host transferred to ${room.hostName} in room ${roomId}`);
+    }
+    io.to(roomId).emit("study-room-updated", serializeRoom(room));
+  }
+}
+
 io.on("connection", (socket) => {
 console.log("🟢 New client connected:", socket.id);
 
@@ -2627,6 +2773,112 @@ socket.on('voice-ice', ({ roomId, candidate, to, from }) => {
 // ── END OF ADDITIONS ──
 
 
+  // ── COLLABORATIVE STUDY ROOM EVENTS ──
+  socket.on("join-study-room", async ({ roomId, userId, userName }) => {
+    socket.join(roomId);
+    socket.userId = userId;
+    socket.studyRoomId = roomId;
+    socket.userName = userName;
+
+    let room = studyRooms.get(roomId);
+    if (!room) {
+      room = {
+        id: roomId,
+        hostId: userId,
+        hostName: userName,
+        config: { maxParticipants: 4, timerDuration: 600, difficulty: "Medium", topic: "arrays", problems: [] },
+        status: "lobby",
+        participants: {},
+        currentProblem: null,
+        timerSeconds: 0,
+        timerInterval: null
+      };
+      studyRooms.set(roomId, room);
+    }
+
+    if (!room.participants[userId]) {
+      room.participants[userId] = {
+        id: userId,
+        name: userName,
+        status: room.status === "playing" ? "solving" : "lobby",
+        score: 0,
+        timeTaken: null,
+        submittedCode: ""
+      };
+    }
+
+    console.log(`👥 Study room: User ${userName} joined room ${roomId}`);
+    io.to(roomId).emit("study-room-updated", serializeRoom(room));
+  });
+
+  socket.on("start-study-round", ({ roomId, problem }) => {
+    const room = studyRooms.get(roomId);
+    if (!room) return;
+
+    room.status = "playing";
+    room.currentProblem = problem;
+    room.timerSeconds = room.config.timerDuration;
+    
+    for (const pid in room.participants) {
+      room.participants[pid].status = "solving";
+      room.participants[pid].timeTaken = null;
+      room.participants[pid].submittedCode = "";
+      room.participants[pid].score = 0;
+    }
+
+    io.to(roomId).emit("study-round-started", {
+      problem,
+      timerDuration: room.config.timerDuration,
+      roomState: serializeRoom(room)
+    });
+
+    if (room.timerInterval) clearInterval(room.timerInterval);
+    room.timerInterval = setInterval(() => {
+      room.timerSeconds--;
+      io.to(roomId).emit("study-timer-tick", { timerSeconds: room.timerSeconds });
+
+      if (room.timerSeconds <= 0) {
+        clearInterval(room.timerInterval);
+        room.timerInterval = null;
+        room.status = "recap";
+        io.to(roomId).emit("study-round-ended", serializeRoom(room));
+      }
+    }, 1000);
+  });
+
+  socket.on("submit-study-solution", ({ roomId, userId, code, timeTaken, success }) => {
+    const room = studyRooms.get(roomId);
+    if (!room) return;
+
+    const participant = room.participants[userId];
+    if (participant) {
+      participant.status = "completed";
+      participant.submittedCode = code;
+      participant.timeTaken = timeTaken;
+      participant.score = success ? Math.max(10, Math.floor(room.timerSeconds / 10)) : 0;
+    }
+
+    const allDone = Object.values(room.participants).every(p => p.status === "completed");
+    if (allDone) {
+      if (room.timerInterval) {
+        clearInterval(room.timerInterval);
+        room.timerInterval = null;
+      }
+      room.status = "recap";
+      io.to(roomId).emit("study-round-ended", serializeRoom(room));
+    } else {
+      io.to(roomId).emit("study-room-updated", serializeRoom(room));
+    }
+  });
+
+  socket.on("leave-study-room", ({ roomId, userId }) => {
+    cleanupStudyUser(socket, roomId, userId);
+  });
+
+  socket.on("study-chat-message", ({ roomId, userName, text }) => {
+    io.to(roomId).emit("receive-study-chat", { userName, text });
+  });
+
   socket.on("join-room", (roomId, userId) => {
       socket.join(roomId);
       // Store user mapping
@@ -2643,6 +2895,9 @@ socket.on('voice-ice', ({ roomId, candidate, to, from }) => {
         if (socket.roomId) {
             socket.to(socket.roomId).emit("user-disconnected", socket.userId);
         }
+    }
+    if (socket.studyRoomId && socket.userId) {
+        cleanupStudyUser(socket, socket.studyRoomId, socket.userId);
     }
 });
   });
