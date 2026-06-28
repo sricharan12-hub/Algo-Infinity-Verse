@@ -568,7 +568,7 @@
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
-            body: requestBody,
+            body: JSON.stringify({ idToken }),
           });
           console.log("[google-auth] /api/auth/google response status:", response.status);
           if (response.ok) {
