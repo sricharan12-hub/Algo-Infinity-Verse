@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import fs from "fs/promises";
 import http from "http";
+import { execFile } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
 import { initializeFirebase, getDb, COLLECTIONS } from "./firebase.js";
@@ -45,6 +46,7 @@ import {
   getBattle,
   getHistory,
 } from "./pages/Dsa-Battle/Battleservice.js";
+import { instrumentJS } from "./modules/code-tracer.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -80,6 +82,7 @@ const USERS_FILE = path.join(DATA_DIR, "users.json");
 const MEMORY_FILE = path.join(DATA_DIR, "memory.json");
 const TEAM_PROFILES_FILE = path.join(DATA_DIR, "team_profiles.json");
 const AUDITS_FILE = path.join(DATA_DIR, "audits_history.json");
+const EXECUTIONS_FILE = path.join(DATA_DIR, "executions.json");
 const SESSION_COOKIE = "aiv_session";
 const ACCESS_COOKIE = "aiv_access";
 const REFRESH_COOKIE = "aiv_refresh";
@@ -240,6 +243,46 @@ async function readAudits() {
 async function writeAudits(audits) {
   await ensureAuditsStore();
   await fs.writeFile(AUDITS_FILE, `${JSON.stringify(audits, null, 2)}\n`);
+}
+
+// ── Execution History Store ─────────────────────────────────────────────────
+
+let executionWriteQueue = Promise.resolve();
+
+async function ensureExecutionStore() {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  try {
+    await fs.access(EXECUTIONS_FILE);
+  } catch {
+    await fs.writeFile(EXECUTIONS_FILE, "[]\n");
+  }
+}
+
+async function readExecutions() {
+  await ensureExecutionStore();
+  const raw = await fs.readFile(EXECUTIONS_FILE, "utf8");
+  return JSON.parse(raw || "[]");
+}
+
+async function writeExecutionsAtomic(executions) {
+  const tmpPath = `${EXECUTIONS_FILE}.${process.pid}.${Date.now()}.tmp`;
+  await fs.writeFile(tmpPath, `${JSON.stringify(executions, null, 2)}\n`);
+  await fs.rename(tmpPath, EXECUTIONS_FILE);
+}
+
+async function updateExecutionStore(mutator) {
+  const task = executionWriteQueue.then(async () => {
+    await ensureExecutionStore();
+    const raw = await fs.readFile(EXECUTIONS_FILE, "utf8");
+    const store = JSON.parse(raw || "[]");
+    const result = await mutator(store);
+    await writeExecutionsAtomic(store);
+    return result;
+  });
+  executionWriteQueue = task.catch((err) => {
+    console.error("[updateExecutionStore] Write task failed:", err);
+  });
+  return task;
 }
 
 // ── Memory Scanner (Spaced Repetition, SM-2) ─────────────────────────────────
@@ -461,6 +504,7 @@ async function handleApi(req, res, pathname) {
         });
       }
       const sourceCode = payload.sourceCode ?? payload.source_code;
+      const originalCode = payload.originalCode;
       const { language, stdin } = payload;
 
       if (
@@ -484,49 +528,212 @@ async function handleApi(req, res, pathname) {
         'perl': { lang: 'perl', version: '0' }
       };
 
-      const targetLang = languageMap[language.toLowerCase()];
+      const languageId = JUDGE0_LANGUAGE_IDS[language.toLowerCase()];
 
-      if (!targetLang) {
+      if (!languageId) {
          return sendJson(res, 400, { success: false, message: 'Unsupported language.' });
       }
 
-      // JDoodle API call
-      const response = await fetch('https://api.jdoodle.com/v1/execute', {
+      const JUDGE0_API = 'https://ce.judge0.com';
+      const b64 = (s) => Buffer.from(s, 'utf-8').toString('base64');
+      const d64 = (s) => s ? Buffer.from(s, 'base64').toString('utf-8') : '';
+
+      const executionId = uuidv4();
+      const startedAt = new Date().toISOString();
+
+      let stdout = "", stderr = "", exitCode = 0, cpuTime = null, memory = null, execError = null;
+
+      try {
+        const submitRes = await fetch(`${JUDGE0_API}/submissions?base64_encoded=true&wait=false`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-              clientId: process.env.JDOODLE_CLIENT_ID,
-              clientSecret: process.env.JDOODLE_CLIENT_SECRET,
-              script: sourceCode,
-              language: targetLang.lang,
-              versionIndex: targetLang.version,
-              stdin: stdin || ""
+            source_code: b64(sourceCode),
+            language_id: languageId,
+            stdin: b64(stdin || ""),
           })
-      });
+        });
 
-      const data = await response.json();
+        if (!submitRes.ok) {
+          const errText = await submitRes.text();
+          throw new Error(`Judge0 submission error: ${errText}`);
+        }
 
-      if (!response.ok || data.error) {
-          console.error("JDoodle API Error:", data);
-          return sendJson(res, 500, { 
-              success: false, 
-              message: 'Compiler API error', 
-              details: data 
-          });
+        const { token } = await submitRes.json();
+        if (!token) throw new Error('No submission token received from Judge0');
+
+        let result;
+        for (let i = 0; i < 50; i++) {
+          await new Promise(r => setTimeout(r, 600));
+          const pollRes = await fetch(`${JUDGE0_API}/submissions/${encodeURIComponent(token)}?base64_encoded=true`);
+          if (!pollRes.ok) throw new Error(`Judge0 poll error: ${await pollRes.text()}`);
+          result = await pollRes.json();
+          if (result.status && result.status.id >= 3) break;
+        }
+
+        if (!result || (result.status && result.status.id < 3)) {
+          throw new Error('Judge0 execution timed out');
+        }
+
+        stdout = d64(result.stdout);
+        stderr = d64(result.stderr) || d64(result.compile_output) || '';
+        exitCode = result.status?.id === 3 ? 0 : 1;
+        cpuTime = result.time ?? null;
+        memory = result.memory ?? null;
+      } catch (fetchErr) {
+        execError = fetchErr.message;
       }
 
-     
+      const execution = {
+        id: executionId,
+        userId: session.sub,
+        sourceCode,
+        originalCode,
+        language,
+        stdin: stdin || "",
+        stdout,
+        stderr,
+        exitCode: execError ? 1 : exitCode,
+        cpuTime,
+        memory,
+        error: execError,
+        createdAt: startedAt,
+        variableSnapshots: []
+      };
+
+      await updateExecutionStore((store) => {
+        store.push(execution);
+      });
+
+      if (execError) {
+        return sendJson(res, 500, {
+            success: false,
+            message: execError,
+            executionId
+        });
+      }
+
       return sendJson(res, 200, {
           success: true,
+          executionId,
           data: {
-              output: data.output,
-              memory: data.memory,
-              cpuTime: data.cpuTime
+              output: stdout,
+              stderr,
+              memory,
+              cpuTime
           }
       });
     } catch (error) {
         console.error('Server Execution Error:', error);
         return sendJson(res, 500, { success: false, message: 'Internal server proxy error.' });
+    }
+  }
+
+  // ── Traced Execution (JS only, server-side child process with variable snapshots) ──
+
+  if (pathname === "/api/execute/traced" && req.method === "POST") {
+    try {
+      const session = getSession(req);
+      if (!session) {
+        return sendJson(res, 401, { success: false, message: "Authentication required." });
+      }
+
+      const payload = await readJsonBody(req);
+      const sourceCode = payload.sourceCode ?? payload.source_code;
+      const originalCode = payload.originalCode;
+      const stdin = payload.stdin ?? "";
+
+      if (!sourceCode || typeof sourceCode !== "string") {
+        return sendJson(res, 400, { success: false, message: "Source code is required." });
+      }
+
+      const { instrumented, variableNames, error: instrumentError } = instrumentJS(sourceCode);
+      if (instrumentError) {
+        return sendJson(res, 400, { success: false, message: instrumentError });
+      }
+
+      const tmpFile = path.join(DATA_DIR, `__trace_${crypto.randomUUID()}.mjs`);
+      let snapshots = [];
+      let userOutput = "";
+
+      try {
+        await fs.writeFile(tmpFile, instrumented, "utf8");
+        await new Promise((resolve, reject) => {
+          execFile("node", [tmpFile], {
+            timeout: 10000,
+            maxBuffer: 1024 * 1024,
+            env: { ...process.env, NODE_OPTIONS: "" },
+          }, (err, stdout, stderr) => {
+            if (stdout) {
+              try {
+                const parsed = JSON.parse(stdout);
+                if (parsed.snapshots && Array.isArray(parsed.snapshots)) {
+                  snapshots = parsed.snapshots;
+                  userOutput = (parsed.output || []).join("\n");
+                } else {
+                  userOutput = stdout;
+                }
+              } catch {
+                userOutput = stdout;
+              }
+            }
+
+            if (err) {
+              if (snapshots.length === 0) {
+                reject(new Error(stderr || err.message));
+              } else {
+                resolve();
+              }
+            } else {
+              resolve();
+            }
+          });
+        });
+      let snapshots = [];
+      let userOutput = "";
+      let traceError = null;
+      try {
+        const result = await runTrace(sourceCode, stdin);
+        snapshots = result.snapshots || [];
+        userOutput = result.output || "";
+      } catch (execError) {
+        traceError = execError.message;
+        userOutput = `Execution error: ${traceError}`;
+      } finally {
+        await fs.unlink(tmpFile).catch(() => {});
+      }
+      const executionId = uuidv4();
+      const execution = {
+        id: executionId,
+        userId: session.sub,
+        sourceCode,
+        originalCode,
+        language: "javascript",
+        stdin,
+        stdout: userOutput,
+        stderr: traceError || "",
+        exitCode: traceError ? 1 : 0,
+        cpuTime: null,
+        memory: null,
+        error: traceError,
+        createdAt: new Date().toISOString(),
+        variableSnapshots: snapshots,
+        traced: true,
+      };
+
+      await updateExecutionStore((store) => {
+        store.push(execution);
+      });
+
+      return sendJson(res, 200, {
+        success: !traceError,
+        executionId,
+        data: { output: userOutput },
+        snapshots,
+      });
+    } catch (error) {
+      console.error("Traced Execution Error:", error);
+      return sendJson(res, 500, { success: false, message: "Traced execution failed." });
     }
   }
 
@@ -1912,6 +2119,126 @@ if (pathname === "/api/forgot-password" && req.method === "POST") {
     }
   }
 
+  // ── Problem Notes & Mnemonics endpoints ──────────────────────────────────
+  if (pathname === "/api/problem-notes" && req.method === "GET") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    try {
+      if (useFirestore) {
+        const snap = await db.collection("users").doc(session.sub).collection("problemNotes").get();
+        const notes = {};
+        snap.forEach(doc => {
+          notes[doc.id] = doc.data();
+        });
+        return sendJson(res, 200, { success: true, notes });
+      } else {
+        const users = await readUsers();
+        const user = users.find(u => u.id === session.sub);
+        return sendJson(res, 200, { success: true, notes: user?.problemNotes || {} });
+      }
+    } catch (err) {
+      console.error("Error fetching notes:", err);
+      return sendJson(res, 500, { error: "Failed to fetch notes." });
+    }
+  }
+
+  const notesMatch = pathname.match(/^\/api\/problem-notes\/([^/]+)$/);
+  if (notesMatch && req.method === "PUT") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    const problemId = notesMatch[1];
+    let payload;
+    try { payload = await readJsonBody(req); } catch { return sendJson(res, 400, { error: "Invalid JSON." }); }
+
+    const noteData = {
+      topicKey: String(payload.topicKey || ""),
+      problemId: parseInt(problemId) || 0,
+      notes: String(payload.notes || ""),
+      mnemonics: String(payload.mnemonics || ""),
+      pitfalls: String(payload.pitfalls || ""),
+      whenToUse: String(payload.whenToUse || ""),
+      tags: Array.isArray(payload.tags) ? payload.tags : [],
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      if (useFirestore) {
+        await db.collection("users").doc(session.sub).collection("problemNotes").doc(String(problemId)).set(noteData);
+      } else {
+        const users = await readUsers();
+        const idx = users.findIndex(u => u.id === session.sub);
+        if (idx !== -1) {
+          if (!users[idx].problemNotes) users[idx].problemNotes = {};
+          users[idx].problemNotes[problemId] = noteData;
+          await writeUsers(users);
+        }
+      }
+      return sendJson(res, 200, { success: true, note: noteData });
+    } catch (err) {
+      console.error("Error saving note:", err);
+      return sendJson(res, 500, { error: "Failed to save note." });
+    }
+  }
+
+  // ── Spaced Repetition Practice Problems endpoints ─────────────────────────
+  if (pathname === "/api/spaced-repetition" && req.method === "GET") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    try {
+      if (useFirestore) {
+        const snap = await db.collection("users").doc(session.sub).collection("spacedRepetition").get();
+        const cards = {};
+        snap.forEach(doc => {
+          cards[doc.id] = doc.data();
+        });
+        return sendJson(res, 200, { success: true, cards });
+      } else {
+        const users = await readUsers();
+        const user = users.find(u => u.id === session.sub);
+        return sendJson(res, 200, { success: true, cards: user?.spacedRepetition || {} });
+      }
+    } catch (err) {
+      console.error("Error fetching spaced repetition cards:", err);
+      return sendJson(res, 500, { error: "Failed to fetch spaced repetition cards." });
+    }
+  }
+
+  const repMatch = pathname.match(/^\/api\/spaced-repetition\/([^/]+)$/);
+  if (repMatch && req.method === "PUT") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    const problemId = repMatch[1];
+    let payload;
+    try { payload = await readJsonBody(req); } catch { return sendJson(res, 400, { error: "Invalid JSON." }); }
+
+    const existing = payload.existing || { repetitions: 0, easeFactor: 2.5, interval: 0 };
+    const quality = parseInt(payload.quality) !== undefined ? parseInt(payload.quality) : 3;
+    const updated = applySM2(existing, quality);
+    updated.problemId = parseInt(problemId) || 0;
+
+    try {
+      if (useFirestore) {
+        await db.collection("users").doc(session.sub).collection("spacedRepetition").doc(String(problemId)).set(updated);
+      } else {
+        const users = await readUsers();
+        const idx = users.findIndex(u => u.id === session.sub);
+        if (idx !== -1) {
+          if (!users[idx].spacedRepetition) users[idx].spacedRepetition = {};
+          users[idx].spacedRepetition[problemId] = updated;
+          await writeUsers(users);
+        }
+      }
+      return sendJson(res, 200, { success: true, card: updated });
+    } catch (err) {
+      console.error("Error saving spaced repetition card:", err);
+      return sendJson(res, 500, { error: "Failed to save spaced repetition card." });
+    }
+  }
+
   // ── Collaborative Study Rooms endpoints ──────────────────────────────────
   if (pathname === "/api/study-rooms" && req.method === "GET") {
     const roomsList = [];
@@ -2176,38 +2503,98 @@ if (pathname === "/api/forgot-password" && req.method === "POST") {
     return sendJson(res, 200, { ok: true });
   }
 
-  if (pathname === "/api/predict-acceptance" && req.method === "POST") {
-    let payload;
+  // ── Execution History Endpoints ─────────────────────────────────────────
+
+  if (pathname === "/api/executions" && req.method === "GET") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
     try {
-      payload = await readJsonBody(req);
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const language = url.searchParams.get("language");
+      const dateFrom = url.searchParams.get("from");
+      const dateTo = url.searchParams.get("to");
+      const limit = Math.min(Number(url.searchParams.get("limit")) || 50, 200);
+
+      const all = await readExecutions();
+      let list = all.filter(e => e.userId === session.sub);
+
+      if (language) {
+        list = list.filter(e => e.language?.toLowerCase() === language.toLowerCase());
+      }
+      if (dateFrom) {
+        const from = new Date(dateFrom);
+        list = list.filter(e => new Date(e.createdAt) >= from);
+      }
+      if (dateTo) {
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59, 999);
+        list = list.filter(e => new Date(e.createdAt) <= to);
+      }
+
+      list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      list = list.slice(0, limit);
+
+      const summary = list.map(e => ({
+        id: e.id,
+        language: e.language,
+        exitCode: e.exitCode,
+        error: !!e.error,
+        createdAt: e.createdAt,
+        cpuTime: e.cpuTime,
+        preview: (e.originalCode || e.sourceCode || '').slice(0, 120),
+        hasSnapshots: Array.isArray(e.variableSnapshots) && e.variableSnapshots.length > 0
+      }));
+
+      return sendJson(res, 200, { executions: summary, total: all.filter(e => e.userId === session.sub).length });
     } catch (err) {
-      const tooLarge = err?.message === "Request body is too large.";
-      return sendJson(res, tooLarge ? 413 : 400, {
-        success: false,
-        error: tooLarge ? "Request body is too large." : "Invalid JSON body.",
-      });
+      console.error("Error fetching executions:", err);
+      return sendJson(res, 500, { error: "Failed to fetch execution history." });
     }
+  }
 
-    const { code, language, problemId } = payload;
-    if (
-      typeof code !== "string" ||
-      !code.trim() ||
-      typeof language !== "string" ||
-      !language.trim() ||
-      !String(problemId ?? "").trim()
-    ) {
-      return sendJson(res, 400, {
-        success: false,
-        error: "Code, language, and problemId are required",
-      });
-    }
+  if (pathname.startsWith("/api/executions/") && req.method === "GET") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    const execId = pathname.slice("/api/executions/".length);
+    if (!execId) return sendJson(res, 400, { error: "Missing execution ID." });
 
     try {
-      const analysis = analyzeCode(code, language, problemId);
-      return sendJson(res, 200, { success: true, data: analysis });
-    } catch (error) {
-      console.error("Error predicting acceptance:", error);
-      return sendJson(res, 500, { success: false, error: error.message });
+      const all = await readExecutions();
+      const execution = all.find(e => e.id === execId && e.userId === session.sub);
+      if (!execution) return sendJson(res, 404, { error: "Execution not found." });
+
+      return sendJson(res, 200, { execution });
+    } catch (err) {
+      console.error("Error fetching execution:", err);
+      return sendJson(res, 500, { error: "Failed to fetch execution." });
+    }
+  }
+
+  if (pathname.startsWith("/api/executions/") && req.method === "POST" && pathname.endsWith("/snapshots")) {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    const execId = pathname.split("/")[3];
+    if (!execId) return sendJson(res, 400, { error: "Missing execution ID." });
+
+    try {
+      const payload = await readJsonBody(req);
+      const snapshots = payload.snapshots;
+      if (!Array.isArray(snapshots)) return sendJson(res, 400, { error: "Snapshots must be an array." });
+
+      await updateExecutionStore((store) => {
+        const idx = store.findIndex(e => e.id === execId && e.userId === session.sub);
+        if (idx !== -1) {
+          store[idx].variableSnapshots = snapshots;
+        }
+      });
+
+      return sendJson(res, 200, { success: true });
+    } catch (err) {
+      console.error("Error saving snapshots:", err);
+      return sendJson(res, 500, { error: "Failed to save snapshots." });
     }
   }
 

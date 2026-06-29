@@ -1,5 +1,35 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import crypto from 'crypto';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = path.join(__dirname, 'data');
+const EXECUTIONS_FILE = path.join(DATA_DIR, 'executions.json');
+
+let execWriteQueue = Promise.resolve();
+
+async function ensureStore() {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  try { await fs.access(EXECUTIONS_FILE); }
+  catch { await fs.writeFile(EXECUTIONS_FILE, '[]\n'); }
+}
+
+async function appendExecution(record) {
+  const task = execWriteQueue.then(async () => {
+    await ensureStore();
+    const raw = await fs.readFile(EXECUTIONS_FILE, 'utf8');
+    const store = JSON.parse(raw || '[]');
+    store.push(record);
+    const tmp = `${EXECUTIONS_FILE}.${process.pid}.${Date.now()}.tmp`;
+    await fs.writeFile(tmp, `${JSON.stringify(store, null, 2)}\n`);
+    await fs.rename(tmp, EXECUTIONS_FILE);
+  });
+  execWriteQueue = task.catch(() => {});
+  return task;
+}
 
 const LANGUAGE_IDS = {
   python:      71,
@@ -47,7 +77,9 @@ app.post('/api/execute', async (req, res) => {
     return res.status(413).json({ error: 'Payload too large. Request body must be under 100KB.' });
   }
 
-  const { source_code, language, stdin = '' } = req.body;
+  const source_code = req.body.source_code ?? req.body.sourceCode;
+  const originalCode = req.body.originalCode;
+  const { language, stdin = '' } = req.body;
 
   // Validate required fields and constraints
   if (!language || typeof language !== 'string') {
@@ -93,11 +125,36 @@ app.post('/api/execute', async (req, res) => {
 
     const data = await pollSubmission(token);
 
+    const stdout = d64(data.stdout);
+    const stderr = d64(data.stderr) || d64(data.compile_output) || '';
+    const exitCode = data.status?.id === 3 ? 0 : 1;
+
+    const executionRecord = {
+      id: crypto.randomUUID(),
+      userId: req.headers['x-user-id'] || 'local-dev',
+      sourceCode: source_code,
+      originalCode,
+      language,
+      stdin,
+      stdout,
+      stderr,
+      exitCode,
+      cpuTime: data.time ?? null,
+      memory: data.memory ?? null,
+      error: exitCode !== 0 ? (data.status?.description || 'Execution error') : null,
+      createdAt: new Date().toISOString(),
+      variableSnapshots: [],
+    };
+    appendExecution(executionRecord).catch((e) => console.error('Failed to save execution log:', e));
+
     return res.status(200).json({
-      stdout: d64(data.stdout),
-      stderr: d64(data.stderr) || d64(data.compile_output) || '',
-      code: data.status?.id === 3 ? 0 : 1,
-      status: data.status?.description ?? 'Unknown',
+      success: true,
+      data: {
+        output: stdout,
+        stderr,
+        memory: data.memory ?? null,
+        cpuTime: data.time ?? null,
+      }
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
