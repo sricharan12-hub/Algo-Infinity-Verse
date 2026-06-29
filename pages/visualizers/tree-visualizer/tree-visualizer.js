@@ -336,7 +336,6 @@ function* levelorder(root) {
 }
 
 document.getElementById('btn-inorder').addEventListener('click', () => {
-    if (isAnimating) return;
     if (isDbgMode) {
         startTreeDebugger('inorder');
         return;
@@ -345,7 +344,6 @@ document.getElementById('btn-inorder').addEventListener('click', () => {
 });
 
 document.getElementById('btn-preorder').addEventListener('click', () => {
-    if (isAnimating) return;
     if (isDbgMode) {
         startTreeDebugger('preorder');
         return;
@@ -354,7 +352,6 @@ document.getElementById('btn-preorder').addEventListener('click', () => {
 });
 
 document.getElementById('btn-postorder').addEventListener('click', () => {
-    if (isAnimating) return;
     if (isDbgMode) {
         startTreeDebugger('postorder');
         return;
@@ -363,7 +360,6 @@ document.getElementById('btn-postorder').addEventListener('click', () => {
 });
 
 document.getElementById('btn-levelorder').addEventListener('click', () => {
-    if (isAnimating) return;
     if (isDbgMode) {
         startTreeDebugger('levelorder');
         return;

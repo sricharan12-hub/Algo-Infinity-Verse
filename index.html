@@ -1312,17 +1312,62 @@
         <div class="quiz-modal-body">
           <div class="quiz-layout">
             <div class="quiz-problem-panel">
-              <div class="problem-description">
-                <h4>Problem Description</h4>
-                <p id="quizDescription"></p>
-                <div class="problem-examples">
-                  <h5>Examples</h5>
-                  <div id="quizExamples"></div>
+              <!-- Tab Navigation -->
+              <div class="quiz-panel-tabs" style="display: flex; border-bottom: 1px solid var(--glass-border); margin-bottom: 1rem; gap: 0.5rem;">
+                <button id="btnQuizTabProblem" class="quiz-tab-btn active" onclick="switchQuizTab('problem')" type="button">Description</button>
+                <button id="btnQuizTabNotes" class="quiz-tab-btn" onclick="switchQuizTab('notes')" type="button">Notes & Mnemonics</button>
+              </div>
+
+              <!-- Problem Content Area -->
+              <div id="quizTabProblemContent">
+                <div class="problem-description">
+                  <h4>Problem Description</h4>
+                  <p id="quizDescription"></p>
+                  <div class="problem-examples">
+                    <h5>Examples</h5>
+                    <div id="quizExamples"></div>
+                  </div>
+                </div>
+                <div class="test-cases-section">
+                  <h5 class="test-cases-heading">Test Cases</h5>
+                  <div class="test-cases-container" id="quizTestCasesContainer"></div>
                 </div>
               </div>
-              <div class="test-cases-section">
-                <h5 class="test-cases-heading">Test Cases</h5>
-                <div class="test-cases-container" id="quizTestCasesContainer"></div>
+
+              <!-- Notes & Mnemonics Content Area -->
+              <div id="quizTabNotesContent" style="display: none; padding-right: 0.5rem; max-height: 480px; overflow-y: auto;">
+                <h4 style="margin-top:0; font-family:'Orbitron',sans-serif; color:var(--accent);">Problem Study Guide</h4>
+                <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 1rem;">Attach study hooks, traps, and guidelines below. Notes are saved to your profile.</p>
+                
+                <div class="control-group" style="margin-bottom: 0.75rem;">
+                  <label for="noteText" style="display:block; font-size:0.8rem; margin-bottom:0.25rem;">My Notes</label>
+                  <textarea id="noteText" class="control-input" placeholder="General observations, explanations, or approach summaries..." style="height: 70px; resize: vertical; width: 100%; border-radius: 6px; padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); font-family: inherit; font-size: 0.9rem;"></textarea>
+                </div>
+                
+                <div class="control-group" style="margin-bottom: 0.75rem;">
+                  <label for="mnemonicText" style="display:block; font-size:0.8rem; margin-bottom:0.25rem;">Mnemonics / Memory Hooks</label>
+                  <textarea id="mnemonicText" class="control-input" placeholder="e.g. 'FAST/SLOW pointers: Slow moves 1, Fast moves 2'..." style="height: 60px; resize: vertical; width: 100%; border-radius: 6px; padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); font-family: inherit; font-size: 0.9rem;"></textarea>
+                </div>
+                
+                <div class="control-group" style="margin-bottom: 0.75rem;">
+                  <label for="pitfallsText" style="display:block; font-size:0.8rem; margin-bottom:0.25rem;">Common Pitfalls & Traps</label>
+                  <textarea id="pitfallsText" class="control-input" placeholder="What to watch out for (e.g. integer overflow, empty checks)..." style="height: 60px; resize: vertical; width: 100%; border-radius: 6px; padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); font-family: inherit; font-size: 0.9rem;"></textarea>
+                </div>
+                
+                <div class="control-group" style="margin-bottom: 0.75rem;">
+                  <label for="whenToUseText" style="display:block; font-size:0.8rem; margin-bottom:0.25rem;">When to use this Pattern?</label>
+                  <textarea id="whenToUseText" class="control-input" placeholder="Characteristics of problems that need this solution pattern..." style="height: 60px; resize: vertical; width: 100%; border-radius: 6px; padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); font-family: inherit; font-size: 0.9rem;"></textarea>
+                </div>
+
+                <div class="control-group" style="margin-bottom: 1rem;">
+                  <label for="noteTags" style="display:block; font-size:0.8rem; margin-bottom:0.25rem;">Tags (Comma-separated)</label>
+                  <input type="text" id="noteTags" class="control-input" placeholder="e.g. sliding-window, hash-map" style="width: 100%; border-radius: 6px; padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); font-family: inherit; font-size: 0.9rem;">
+                </div>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 1rem;">
+                  <span id="noteSaveStatus" style="font-size:0.8rem; color:#10b981; font-style:italic;"></span>
+                  <button id="btnSaveProblemNotes" class="btn btn-primary" onclick="saveActiveProblemNotes()" type="button" style="padding: 0.4rem 0.8rem; font-size: 0.82rem;"><i class="fas fa-save"></i> Save Notes</button>
+                </div>
               </div>
             </div>
             <div class="quiz-editor-panel">

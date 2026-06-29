@@ -2121,6 +2121,69 @@ if (pathname === "/api/forgot-password" && req.method === "POST") {
     }
   }
 
+  // ── Problem Notes & Mnemonics endpoints ──────────────────────────────────
+  if (pathname === "/api/problem-notes" && req.method === "GET") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    try {
+      if (useFirestore) {
+        const snap = await db.collection("users").doc(session.sub).collection("problemNotes").get();
+        const notes = {};
+        snap.forEach(doc => {
+          notes[doc.id] = doc.data();
+        });
+        return sendJson(res, 200, { success: true, notes });
+      } else {
+        const users = await readUsers();
+        const user = users.find(u => u.id === session.sub);
+        return sendJson(res, 200, { success: true, notes: user?.problemNotes || {} });
+      }
+    } catch (err) {
+      console.error("Error fetching notes:", err);
+      return sendJson(res, 500, { error: "Failed to fetch notes." });
+    }
+  }
+
+  const notesMatch = pathname.match(/^\/api\/problem-notes\/([^/]+)$/);
+  if (notesMatch && req.method === "PUT") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    const problemId = notesMatch[1];
+    let payload;
+    try { payload = await readJsonBody(req); } catch { return sendJson(res, 400, { error: "Invalid JSON." }); }
+
+    const noteData = {
+      topicKey: String(payload.topicKey || ""),
+      problemId: parseInt(problemId) || 0,
+      notes: String(payload.notes || ""),
+      mnemonics: String(payload.mnemonics || ""),
+      pitfalls: String(payload.pitfalls || ""),
+      whenToUse: String(payload.whenToUse || ""),
+      tags: Array.isArray(payload.tags) ? payload.tags : [],
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      if (useFirestore) {
+        await db.collection("users").doc(session.sub).collection("problemNotes").doc(String(problemId)).set(noteData);
+      } else {
+        const users = await readUsers();
+        const idx = users.findIndex(u => u.id === session.sub);
+        if (idx !== -1) {
+          if (!users[idx].problemNotes) users[idx].problemNotes = {};
+          users[idx].problemNotes[problemId] = noteData;
+          await writeUsers(users);
+        }
+      }
+      return sendJson(res, 200, { success: true, note: noteData });
+    } catch (err) {
+      console.error("Error saving note:", err);
+      return sendJson(res, 500, { error: "Failed to save note." });
+    }
+  }
+
   // ── Collaborative Study Rooms endpoints ──────────────────────────────────
   if (pathname === "/api/study-rooms" && req.method === "GET") {
     const roomsList = [];

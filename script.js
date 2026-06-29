@@ -2456,14 +2456,32 @@ function openQuizEditor(problem) {
   updateLineNumbers();
   syncScroll();
 
-  if (!modal._quizCloseBound) {
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal || e.target.closest('.quiz-modal-close')) {
-        closeQuizEditor();
-      }
-    });
-    modal._quizCloseBound = true;
+  // Reset notes tabs & load existing notes
+  if (typeof switchQuizTab === "function") {
+    switchQuizTab('problem');
   }
+  const savedNotes = (userProgress.problemNotes && userProgress.problemNotes[problem.id]) || {
+    notes: "",
+    mnemonics: "",
+    pitfalls: "",
+    whenToUse: "",
+    tags: []
+  };
+  const actualNotes = typeof savedNotes === "string" ? { notes: savedNotes } : savedNotes;
+  
+  const noteText = document.getElementById("noteText");
+  const mnemonicText = document.getElementById("mnemonicText");
+  const pitfallsText = document.getElementById("pitfallsText");
+  const whenToUseText = document.getElementById("whenToUseText");
+  const noteTags = document.getElementById("noteTags");
+  const noteSaveStatus = document.getElementById("noteSaveStatus");
+  
+  if (noteText) noteText.value = actualNotes.notes || "";
+  if (mnemonicText) mnemonicText.value = actualNotes.mnemonics || "";
+  if (pitfallsText) pitfallsText.value = actualNotes.pitfalls || "";
+  if (whenToUseText) whenToUseText.value = actualNotes.whenToUse || "";
+  if (noteTags) noteTags.value = (actualNotes.tags || []).join(", ");
+  if (noteSaveStatus) noteSaveStatus.textContent = "";
 }
 
 function mapType(jt, lang) {
@@ -4371,6 +4389,96 @@ function showUpdateToast(worker) {
   }
 }
 
+window.switchQuizTab = function(tabName) {
+  const probBtn = document.getElementById("btnQuizTabProblem");
+  const notesBtn = document.getElementById("btnQuizTabNotes");
+  const probContent = document.getElementById("quizTabProblemContent");
+  const notesContent = document.getElementById("quizTabNotesContent");
+
+  if (tabName === "problem") {
+    if (probBtn) probBtn.classList.add("active");
+    if (notesBtn) notesBtn.classList.remove("active");
+    if (probContent) probContent.style.display = "block";
+    if (notesContent) notesContent.style.display = "none";
+  } else {
+    if (probBtn) probBtn.classList.remove("active");
+    if (notesBtn) notesBtn.classList.add("active");
+    if (probContent) probContent.style.display = "none";
+    if (notesContent) notesContent.style.display = "block";
+  }
+};
+
+window.saveActiveProblemNotes = async function() {
+  if (!currentProblem) return;
+
+  const notesVal = document.getElementById("noteText")?.value || "";
+  const mnemonicVal = document.getElementById("mnemonicText")?.value || "";
+  const pitfallsVal = document.getElementById("pitfallsText")?.value || "";
+  const whenToUseVal = document.getElementById("whenToUseText")?.value || "";
+  const tagsVal = (document.getElementById("noteTags")?.value || "")
+    .split(",")
+    .map(t => t.trim())
+    .filter(t => t.length > 0);
+
+  const noteSaveStatus = document.getElementById("noteSaveStatus");
+  if (noteSaveStatus) noteSaveStatus.textContent = "Saving...";
+
+  const noteData = {
+    topicKey: currentProblem.category || "general",
+    problemId: currentProblem.id,
+    notes: notesVal,
+    mnemonics: mnemonicVal,
+    pitfalls: pitfallsVal,
+    whenToUse: whenToUseVal,
+    tags: tagsVal,
+    updatedAt: new Date().toISOString()
+  };
+
+  if (!userProgress.problemNotes) userProgress.problemNotes = {};
+  userProgress.problemNotes[currentProblem.id] = noteData;
+
+  // Save to local storage
+  if (typeof saveUserData === "function") saveUserData();
+  else localStorage.setItem("algoInfinityVerse", JSON.stringify(userProgress));
+
+  try {
+    const res = await fetch(`/api/problem-notes/${currentProblem.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(noteData)
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (noteSaveStatus) {
+        noteSaveStatus.textContent = "Saved to cloud!";
+        setTimeout(() => { noteSaveStatus.textContent = ""; }, 3000);
+      }
+    } else {
+      if (noteSaveStatus) noteSaveStatus.textContent = "Saved locally.";
+    }
+  } catch (err) {
+    console.warn("Cloud sync failed:", err);
+    if (noteSaveStatus) noteSaveStatus.textContent = "Saved locally (offline).";
+  }
+};
+
+window.syncProblemNotesDown = async function() {
+  if (location.protocol === "file:") return;
+  try {
+    const res = await fetch("/api/problem-notes");
+    if (res.status === 200) {
+      const data = await res.json();
+      if (data.success && data.notes) {
+        userProgress.problemNotes = { ...(userProgress.problemNotes || {}), ...data.notes };
+        if (typeof saveUserData === "function") saveUserData();
+        else localStorage.setItem("algoInfinityVerse", JSON.stringify(userProgress));
+      }
+    }
+  } catch (err) {
+    console.warn("Could not sync notes down:", err);
+  }
+};
+
 let refreshing = false;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -4396,4 +4504,9 @@ window.addEventListener('load', () => {
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
   updateOnlineStatus();
+
+  // Sync notes on load
+  if (window.syncProblemNotesDown) {
+    window.syncProblemNotesDown();
+  }
 });

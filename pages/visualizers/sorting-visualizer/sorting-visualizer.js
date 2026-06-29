@@ -763,7 +763,7 @@ function generateInsertionSortTrace(arr) {
     tempArr[j + 1] = key;
     trace.push({
       stateSnapshot: [...tempArr],
-      highlights: { sorted: Array.from({length: i + 1}, (_, idx) => idx) },
+      highlights: { sorted: Array.from({length: i}, (_, idx) => idx) },
       explanation: `Insert key ${key} into index ${j+1}.`,
       pseudoCodeLine: 5
     });
