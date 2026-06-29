@@ -1,6 +1,18 @@
 const CACHE_NAME = 'algo-infinity-verse-v1';
 const DYNAMIC_CACHE = 'algo-infinity-verse-dynamic-v1';
 
+// Only cache successful, non-opaque, non-redirect responses.
+// Error (4xx/5xx), opaque (cross-origin no-cors) and redirected responses are
+// passed through to the page but never stored, to avoid cache poisoning.
+function isCacheableResponse(response) {
+  return (
+    !!response &&
+    response.ok &&
+    response.status === 200 &&
+    (response.type === 'basic' || response.type === 'cors')
+  );
+}
+
 // Static assets to cache during install
 const STATIC_ASSETS = [
   '/',
@@ -60,10 +72,13 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
-          return caches.open(DYNAMIC_CACHE).then((cache) => {
-            cache.put(event.request, networkResponse.clone());
-            return networkResponse;
-          });
+          if (isCacheableResponse(networkResponse)) {
+            const responseCopy = networkResponse.clone();
+            caches.open(DYNAMIC_CACHE).then((cache) => {
+              cache.put(event.request, responseCopy);
+            });
+          }
+          return networkResponse;
         })
         .catch(() => {
           return caches.match(event.request);
@@ -74,10 +89,13 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         const fetchPromise = fetch(event.request).then((networkResponse) => {
-          return caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, networkResponse.clone());
-            return networkResponse;
-          });
+          if (isCacheableResponse(networkResponse)) {
+            const responseCopy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseCopy);
+            });
+          }
+          return networkResponse;
         }).catch(() => {
           if (event.request.mode === 'navigate') {
             return caches.match('/offline.html');
