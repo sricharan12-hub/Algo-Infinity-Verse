@@ -480,7 +480,8 @@ async function handleApi(req, res, pathname) {
         'javascript': { lang: 'nodejs', version: '4' },
         'python': { lang: 'python3', version: '3' },
         'cpp': { lang: 'cpp17', version: '0' },
-        'java': { lang: 'java', version: '4' }
+        'java': { lang: 'java', version: '4' },
+        'perl': { lang: 'perl', version: '0' }
       };
 
       const targetLang = languageMap[language.toLowerCase()];

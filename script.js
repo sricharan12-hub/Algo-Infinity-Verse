@@ -3676,9 +3676,10 @@ async function runPerl() {
   if (!code) { if (output) output.textContent = "❌ No code provided"; isRunning = false; return; }
   if (output) output.textContent = "Running... ⏳";
   try {
-    const res = await fetch("http://localhost:5000/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
-    const data = await res.json().catch(() => ({}));
-    if (output) output.textContent = data.output || data.error || "No output";
+    // Route through the standard execution backend (API_BASE) instead of a
+    // hardcoded localhost URL, which fails as mixed content on the HTTPS site.
+    const result = await executeViaApi("perl", code);
+    if (output) output.textContent = result.stdout || "No output";
   } catch (err) { if (output) output.textContent = "Error: " + err.message; }
   isRunning = false;
 }
