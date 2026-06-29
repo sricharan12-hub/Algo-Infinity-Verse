@@ -18,6 +18,10 @@ Thumbs.db
 index.html.bak
 script.js.backup
 
+# Temp / generated artifacts
+*.tmp
+audit-report.json
+
 # Environment
 .env
 .env.local
