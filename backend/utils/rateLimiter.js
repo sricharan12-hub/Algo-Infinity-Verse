@@ -160,6 +160,15 @@ export const resendVerificationLimiter = new RateLimiter({
   backoffType: 'exponential',
 });
 
+// The client error-logging endpoint is anonymous and append-only. Without a
+// limit, an attacker can flood it to churn disk writes. Sized generously so a
+// real client's occasional error reports are never blocked.
+export const logErrorLimiter = new RateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxAttempts: 60,
+  cooldownMs: 15 * 60 * 1000,
+});
+
 // Centralized helper to check and apply rate limits on HTTP server requests
 export function applyRateLimit(req, res, limiter, errorMessage = "Too many attempts. Please try again later.") {
   const key = getClientIdentifier(req);
