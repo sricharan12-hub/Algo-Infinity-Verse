@@ -1,5 +1,19 @@
-const CACHE_NAME = 'algo-infinity-verse-v1';
-const DYNAMIC_CACHE = 'algo-infinity-verse-dynamic-v1';
+// Bump CACHE_VERSION on every deploy (or derive it from a build hash) so the
+// `activate` handler purges the previous precache instead of serving stale assets.
+const CACHE_VERSION = 'v2';
+const CACHE_NAME = `algo-infinity-verse-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `algo-infinity-verse-dynamic-${CACHE_VERSION}`;
+
+// Only cache successful, non-opaque responses. This keeps 404s/5xx error pages
+// and opaque cross-origin responses (status 0) out of the cache, preventing the
+// cache-poisoning described in issue #1230.
+function isCacheable(response) {
+  return (
+    response &&
+    response.ok &&
+    (response.type === 'basic' || response.type === 'cors')
+  );
+}
 
 // Static assets to cache during install
 const STATIC_ASSETS = [
@@ -46,7 +60,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event - Network First for API, Cache First for Static Assets
+// Fetch Event - Network First for navigations & API, Stale-While-Revalidate for static assets
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
@@ -55,40 +69,57 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Navigation requests (HTML pages): Network First so users always get fresh
+  // pages after a deploy instead of a stale precached document.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (isCacheable(networkResponse)) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
+          return networkResponse;
+        })
+        .catch(() =>
+          caches.match(event.request).then((cached) => cached || caches.match('/offline.html'))
+        )
+    );
+    return;
+  }
+
   // API Requests: Network First, fallback to cache
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
-          return caches.open(DYNAMIC_CACHE).then((cache) => {
-            cache.put(event.request, networkResponse.clone());
-            return networkResponse;
-          });
-        })
-        .catch(() => {
-          return caches.match(event.request);
-        })
-    );
-  } else {
-    // Static Assets & Pages: Stale-While-Revalidate
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
-          return caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, networkResponse.clone());
-            return networkResponse;
-          });
-        }).catch(() => {
-          // If offline and not in cache, return the custom offline page for navigation requests
-          if (event.request.mode === 'navigate') {
-            return caches.match('/offline.html');
+          if (isCacheable(networkResponse)) {
+            const responseClone = networkResponse.clone();
+            caches.open(DYNAMIC_CACHE).then((cache) => cache.put(event.request, responseClone));
           }
-        });
-
-        return cachedResponse || fetchPromise;
-      })
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request))
     );
+    return;
   }
+
+  // Static Assets (CSS/JS/images/fonts): Stale-While-Revalidate
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request)
+        .then((networkResponse) => {
+          if (isCacheable(networkResponse)) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
+          return networkResponse;
+        })
+        .catch(() => undefined);
+
+      return cachedResponse || fetchPromise;
+    })
+  );
 });
 
 // Message Event - Handle Service Worker lifecycle
