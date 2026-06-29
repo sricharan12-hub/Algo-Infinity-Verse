@@ -43,7 +43,7 @@ describe('Access control: /api/team-profile IDOR (#1216)', () => {
   it('rejects anonymous POST with 401', async () => {
     const res = await fetch(`${origin}/api/team-profile`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Origin': origin },
       body: JSON.stringify({ id: 'team-anon-post', version: 1, name: 'x' }),
     });
     expect(res.status).toBe(401);
@@ -57,7 +57,7 @@ describe('Access control: /api/team-profile IDOR (#1216)', () => {
     // User A creates the profile -> becomes owner.
     const createRes = await fetch(`${origin}/api/team-profile`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: cookieFor(userA) },
+      headers: { 'Content-Type': 'application/json', Cookie: cookieFor(userA), 'Origin': origin },
       body: JSON.stringify({ id: teamId, version: 1, name: 'A Team', description: 'secret' }),
     });
     expect(createRes.status).toBe(200);
@@ -73,7 +73,7 @@ describe('Access control: /api/team-profile IDOR (#1216)', () => {
     // User B must not be able to overwrite it.
     const bPost = await fetch(`${origin}/api/team-profile`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: cookieFor(userB) },
+      headers: { 'Content-Type': 'application/json', Cookie: cookieFor(userB), 'Origin': origin },
       body: JSON.stringify({ id: teamId, version: created.version, name: 'hijacked' }),
     });
     expect(bPost.status).toBe(403);
@@ -111,7 +111,11 @@ describe('DoS guard: /api/audit/bulk URL cap (#1216)', () => {
     const formData = new FormData();
     formData.append('csv', new Blob([rows], { type: 'text/csv' }), 'repos.csv');
 
-    const res = await fetch(`${origin}/api/audit/bulk`, { method: 'POST', body: formData });
+    const res = await fetch(`${origin}/api/audit/bulk`, {
+      method: 'POST',
+      headers: { 'Origin': origin },
+      body: formData
+    });
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.maxAllowed).toBe(MAX_BULK_AUDIT_URLS);

@@ -2619,6 +2619,39 @@ if (pathname === "/api/forgot-password" && req.method === "POST") {
       return;
     }
     let payload;
+    try {
+      payload = await readJsonBody(req);
+    } catch (err) {
+      const tooLarge = err?.message === "Request body is too large.";
+      return sendJson(res, tooLarge ? 413 : 400, {
+        success: false,
+        error: tooLarge ? "Request body is too large." : "Invalid JSON body.",
+      });
+    }
+
+    const { code, language, problemId } = payload;
+    if (
+      typeof code !== "string" ||
+      !code.trim() ||
+      typeof language !== "string" ||
+      !language.trim() ||
+      !String(problemId ?? "").trim()
+    ) {
+      return sendJson(res, 400, {
+        success: false,
+        error: "Code, language, and problemId are required",
+      });
+    }
+
+    try {
+      const analysis = analyzeCode(code, language, problemId);
+      return sendJson(res, 200, { success: true, data: analysis });
+    } catch (error) {
+      console.error("Error predicting acceptance:", error);
+      return sendJson(res, 500, { success: false, error: error.message });
+    }
+  }
+
   // ── Execution History Endpoints ─────────────────────────────────────────
 
   if (pathname === "/api/executions" && req.method === "GET") {
