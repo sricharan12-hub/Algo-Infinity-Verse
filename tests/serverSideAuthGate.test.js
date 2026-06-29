@@ -32,10 +32,12 @@ describe('Server-side auth gate for private pages (#1227)', () => {
     await new Promise((resolve) => server.close(resolve));
   });
 
+  const expectedLocation = `/login?next=${encodeURIComponent(PRIVATE_PAGE)}`;
+
   it('redirects an unauthenticated request for a private page to /login', async () => {
     const res = await fetch(`${origin}${PRIVATE_PAGE}`, { redirect: 'manual' });
     expect(res.status).toBe(302);
-    expect(res.headers.get('location')).toMatch(/^\/login\?next=/);
+    expect(res.headers.get('location')).toBe(expectedLocation);
   });
 
   it('redirects when the session cookie is invalid (gate is not client-bypassable)', async () => {
@@ -44,7 +46,7 @@ describe('Server-side auth gate for private pages (#1227)', () => {
       headers: { Cookie: 'aiv_session=forged.garbage.token' },
     });
     expect(res.status).toBe(302);
-    expect(res.headers.get('location')).toMatch(/^\/login/);
+    expect(res.headers.get('location')).toBe(expectedLocation);
   });
 
   it('serves the private page to an authenticated user', async () => {
