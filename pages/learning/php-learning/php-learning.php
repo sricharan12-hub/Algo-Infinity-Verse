@@ -105,6 +105,10 @@
               <i class="fas fa-user"></i>
               My Profile
             </a>
+            <a href="/execution-history.html" class="dropdown-item" role="menuitem" data-auth-required>
+              <i class="fas fa-history"></i>
+              Execution History
+            </a>
             <a href="resume.html" class="dropdown-item" role="menuitem">
               <i class="fas fa-file-alt"></i>
               Coding Resume

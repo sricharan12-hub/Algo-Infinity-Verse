@@ -4,10 +4,35 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Algo Infinity Verse - Master DSA &amp; Crack Interviews</title>
+
+    <!-- SEO / Social metadata -->
+    <meta
+      name="description"
+      content="Algo Infinity Verse is an interactive DSA learning platform — master data structures and algorithms and crack technical interviews with hands-on visualizers, quizzes, and coding practice."
+    />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Algo Infinity Verse" />
+    <meta property="og:title" content="Algo Infinity Verse - Master DSA &amp; Crack Interviews" />
+    <meta
+      property="og:description"
+      content="Master DSA and crack interviews with interactive visualizers, quizzes, and coding practice."
+    />
+    <meta property="og:image" content="/images/banner.png" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Algo Infinity Verse - Master DSA &amp; Crack Interviews" />
+    <meta
+      name="twitter:description"
+      content="Master DSA and crack interviews with interactive visualizers, quizzes, and coding practice."
+    />
+    <meta name="twitter:image" content="/images/banner.png" />
+
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#38bdf8" />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="/pages/learning/rust-learning.css" />
     <link
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&amp;family=Poppins:wght@300;400;500;600;700&amp;family=Fira+Code:wght@400;500;600&amp;display=swap"
       rel="stylesheet"
@@ -15,13 +40,6 @@
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css"
-      integrity="sha512-W/zrbCncQnky/EzL+/AYwTtosvrM+YG/V6piQLSe2HuKS6cmbw89kjYkp3tWFn1dkWV7L1ruvJyKbLz73Vlgfg=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
     />
     <script type="importmap">
     {
@@ -49,6 +67,9 @@
     </script>
 </head>
   <body data-page="index">
+    <!-- Skip to main content (accessibility) -->
+    <a href="#main" class="skip-link">Skip to content</a>
+
     <!-- Offline Status Banner -->
     <div id="offline-banner" class="offline-banner hidden" aria-live="polite">
       <i class="fas fa-wifi-slash"></i> You are currently offline. Some features may be limited, but cached content is available.
@@ -78,6 +99,8 @@
     <!-- Navigation Bar (loaded from partial) -->
     <div id="navbar-placeholder"></div>
 
+    <!-- Main content landmark -->
+    <main id="main" tabindex="-1">
     <!-- Hero Section -->
     <section id="home" class="hero">
       <div class="hero-background">
@@ -1283,23 +1306,68 @@
             <span class="quiz-topic-badge" id="quizTopicBadge"></span>
             <span class="quiz-difficulty" id="quizDifficulty"></span>
             <h3 id="quizTitle">Problem Title</h3>
-            <button type="button" class="quiz-modal-close" id="quizModalClose" aria-label="Close" onclick="closeQuizEditor()">&times;</button>
+            <button type="button" class="quiz-modal-close" id="quizModalClose" aria-label="Close">&times;</button>
           </div>
         </div>
         <div class="quiz-modal-body">
           <div class="quiz-layout">
             <div class="quiz-problem-panel">
-              <div class="problem-description">
-                <h4>Problem Description</h4>
-                <p id="quizDescription"></p>
-                <div class="problem-examples">
-                  <h5>Examples</h5>
-                  <div id="quizExamples"></div>
+              <!-- Tab Navigation -->
+              <div class="quiz-panel-tabs" style="display: flex; border-bottom: 1px solid var(--glass-border); margin-bottom: 1rem; gap: 0.5rem;">
+                <button id="btnQuizTabProblem" class="quiz-tab-btn active" onclick="switchQuizTab('problem')" type="button">Description</button>
+                <button id="btnQuizTabNotes" class="quiz-tab-btn" onclick="switchQuizTab('notes')" type="button">Notes & Mnemonics</button>
+              </div>
+
+              <!-- Problem Content Area -->
+              <div id="quizTabProblemContent">
+                <div class="problem-description">
+                  <h4>Problem Description</h4>
+                  <p id="quizDescription"></p>
+                  <div class="problem-examples">
+                    <h5>Examples</h5>
+                    <div id="quizExamples"></div>
+                  </div>
+                </div>
+                <div class="test-cases-section">
+                  <h5 class="test-cases-heading">Test Cases</h5>
+                  <div class="test-cases-container" id="quizTestCasesContainer"></div>
                 </div>
               </div>
-              <div class="test-cases-section">
-                <h5 class="test-cases-heading">Test Cases</h5>
-                <div class="test-cases-container" id="quizTestCasesContainer"></div>
+
+              <!-- Notes & Mnemonics Content Area -->
+              <div id="quizTabNotesContent" style="display: none; padding-right: 0.5rem; max-height: 480px; overflow-y: auto;">
+                <h4 style="margin-top:0; font-family:'Orbitron',sans-serif; color:var(--accent);">Problem Study Guide</h4>
+                <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 1rem;">Attach study hooks, traps, and guidelines below. Notes are saved to your profile.</p>
+                
+                <div class="control-group" style="margin-bottom: 0.75rem;">
+                  <label for="noteText" style="display:block; font-size:0.8rem; margin-bottom:0.25rem;">My Notes</label>
+                  <textarea id="noteText" class="control-input" placeholder="General observations, explanations, or approach summaries..." style="height: 70px; resize: vertical; width: 100%; border-radius: 6px; padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); font-family: inherit; font-size: 0.9rem;"></textarea>
+                </div>
+                
+                <div class="control-group" style="margin-bottom: 0.75rem;">
+                  <label for="mnemonicText" style="display:block; font-size:0.8rem; margin-bottom:0.25rem;">Mnemonics / Memory Hooks</label>
+                  <textarea id="mnemonicText" class="control-input" placeholder="e.g. 'FAST/SLOW pointers: Slow moves 1, Fast moves 2'..." style="height: 60px; resize: vertical; width: 100%; border-radius: 6px; padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); font-family: inherit; font-size: 0.9rem;"></textarea>
+                </div>
+                
+                <div class="control-group" style="margin-bottom: 0.75rem;">
+                  <label for="pitfallsText" style="display:block; font-size:0.8rem; margin-bottom:0.25rem;">Common Pitfalls & Traps</label>
+                  <textarea id="pitfallsText" class="control-input" placeholder="What to watch out for (e.g. integer overflow, empty checks)..." style="height: 60px; resize: vertical; width: 100%; border-radius: 6px; padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); font-family: inherit; font-size: 0.9rem;"></textarea>
+                </div>
+                
+                <div class="control-group" style="margin-bottom: 0.75rem;">
+                  <label for="whenToUseText" style="display:block; font-size:0.8rem; margin-bottom:0.25rem;">When to use this Pattern?</label>
+                  <textarea id="whenToUseText" class="control-input" placeholder="Characteristics of problems that need this solution pattern..." style="height: 60px; resize: vertical; width: 100%; border-radius: 6px; padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); font-family: inherit; font-size: 0.9rem;"></textarea>
+                </div>
+
+                <div class="control-group" style="margin-bottom: 1rem;">
+                  <label for="noteTags" style="display:block; font-size:0.8rem; margin-bottom:0.25rem;">Tags (Comma-separated)</label>
+                  <input type="text" id="noteTags" class="control-input" placeholder="e.g. sliding-window, hash-map" style="width: 100%; border-radius: 6px; padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); font-family: inherit; font-size: 0.9rem;">
+                </div>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 1rem;">
+                  <span id="noteSaveStatus" style="font-size:0.8rem; color:#10b981; font-style:italic;"></span>
+                  <button id="btnSaveProblemNotes" class="btn btn-primary" onclick="saveActiveProblemNotes()" type="button" style="padding: 0.4rem 0.8rem; font-size: 0.82rem;"><i class="fas fa-save"></i> Save Notes</button>
+                </div>
               </div>
             </div>
             <div class="quiz-editor-panel">
@@ -1374,13 +1442,22 @@
           </div>
         </div>
         <div class="quiz-modal-footer">
-          <div class="quiz-actions">
-            <button class="btn btn-outline" onclick="runQuizCode()">
-              <i class="fas fa-play"></i> Run
-            </button>
-            <button class="btn btn-primary" onclick="submitQuizCode()">
-              <i class="fas fa-paper-plane"></i> Submit
-            </button>
+          <div class="quiz-actions" style="display:flex; justify-content:space-between; align-items:center; width:100%; gap: 1rem; flex-wrap: wrap;">
+            <div style="display:flex; gap:0.5rem;">
+              <button class="btn btn-outline" onclick="runQuizCode()">
+                <i class="fas fa-play"></i> Run
+              </button>
+              <button class="btn btn-primary" onclick="submitQuizCode()">
+                <i class="fas fa-paper-plane"></i> Submit
+              </button>
+            </div>
+            
+            <div id="sm2RatingContainer" style="display:none; align-items:center; gap:0.6rem; background:rgba(255,255,255,0.03); padding:0.4rem 0.8rem; border-radius:8px; border:1px solid var(--glass-border);">
+              <span style="font-size:0.8rem; color:var(--text-secondary); font-weight:600; font-family:'Orbitron',sans-serif;">SM-2 Schedule:</span>
+              <button class="btn" style="background:rgba(239, 68, 68, 0.2); color:#ef4444; border:1px solid rgba(239,68,68,0.4); padding:0.25rem 0.5rem; font-size:0.75rem; font-family:'Orbitron',sans-serif; cursor:pointer;" onclick="rateRecallDifficulty(1)" type="button">Again</button>
+              <button class="btn" style="background:rgba(245, 158, 11, 0.2); color:#f59e0b; border:1px solid rgba(245,158,11,0.4); padding:0.25rem 0.5rem; font-size:0.75rem; font-family:'Orbitron',sans-serif; cursor:pointer;" onclick="rateRecallDifficulty(3)" type="button">Good</button>
+              <button class="btn" style="background:rgba(16, 185, 129, 0.2); color:#10b981; border:1px solid rgba(16,185,129,0.4); padding:0.25rem 0.5rem; font-size:0.75rem; font-family:'Orbitron',sans-serif; cursor:pointer;" onclick="rateRecallDifficulty(5)" type="button">Easy</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1794,6 +1871,8 @@
         <button id="reset-btn" class="btn btn-secondary">Reset</button>
     </div>
 </section>
+    </main>
+
     <!-- Footer -->
     <div id="footer-placeholder"></div>
 

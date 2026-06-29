@@ -164,6 +164,8 @@ function getPartialsBase() {
   return 'partials';
 }
 
+const PARTIALS_VERSION = 1;
+
 async function loadPartial(id, url) {
   const abortKey = `partial_${id}`;
   try {
@@ -171,9 +173,9 @@ async function loadPartial(id, url) {
     const base = getPartialsBase();
     const filename = url.replace(/^\/?partials\//, '');
     const fetchUrl = base + '/' + filename;
+    const versionedUrl = fetchUrl + '?v=' + PARTIALS_VERSION;
     
-    // Cache partials for 24 hours (86400000 ms) as they rarely change
-    const html = await apiCache.fetchWithCache(fetchUrl, { signal }, 86400000, 'text');
+    const html = await apiCache.fetchWithCache(versionedUrl, { signal }, 86400000, 'text');
     
     document.getElementById(id).innerHTML = html;
     handleActiveNav();
@@ -386,6 +388,8 @@ let userProgress = {
   favoriteProblems: [],
   recentProblems: [],
   problemNotes: {},
+  spacedRepetition: {},
+  reviewStreak: 0,
   xp: 0,
   level: 1,
   streak: 0,
@@ -413,6 +417,8 @@ if (localStorage.getItem("algoInfinityVerse")) {
   if (loaded && typeof loaded === "object") {
     Object.assign(userProgress, loaded);
     if (!userProgress.dailyGoals) userProgress.dailyGoals = {};
+    if (!userProgress.spacedRepetition) userProgress.spacedRepetition = {};
+    if (userProgress.reviewStreak === undefined) userProgress.reviewStreak = 0;
 
       if (loaded.quizScores) userProgress.quizScores = { ...(userProgress.quizScores || {}), ...loaded.quizScores };
       if (!userProgress.revisionSchedule) userProgress.revisionSchedule = {};
@@ -2453,6 +2459,36 @@ function openQuizEditor(problem) {
   modal.classList.add("active");
   updateLineNumbers();
   syncScroll();
+
+  // Reset notes tabs & load existing notes
+  if (typeof switchQuizTab === "function") {
+    switchQuizTab('problem');
+  }
+  const savedNotes = (userProgress.problemNotes && userProgress.problemNotes[problem.id]) || {
+    notes: "",
+    mnemonics: "",
+    pitfalls: "",
+    whenToUse: "",
+    tags: []
+  };
+  const actualNotes = typeof savedNotes === "string" ? { notes: savedNotes } : savedNotes;
+  
+  const noteText = document.getElementById("noteText");
+  const mnemonicText = document.getElementById("mnemonicText");
+  const pitfallsText = document.getElementById("pitfallsText");
+  const whenToUseText = document.getElementById("whenToUseText");
+  const noteTags = document.getElementById("noteTags");
+  const noteSaveStatus = document.getElementById("noteSaveStatus");
+  
+  if (noteText) noteText.value = actualNotes.notes || "";
+  if (mnemonicText) mnemonicText.value = actualNotes.mnemonics || "";
+  if (pitfallsText) pitfallsText.value = actualNotes.pitfalls || "";
+  if (whenToUseText) whenToUseText.value = actualNotes.whenToUse || "";
+  if (noteTags) noteTags.value = (actualNotes.tags || []).join(", ");
+  if (noteSaveStatus) noteSaveStatus.textContent = "";
+
+  const sm2Container = document.getElementById("sm2RatingContainer");
+  if (sm2Container) sm2Container.style.display = "none";
 }
 
 function mapType(jt, lang) {
@@ -2910,16 +2946,17 @@ function runWorker(harnessCode, timeoutMs) {
 }
 
 const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-  ? 'http://localhost:3001'
+  ? window.location.origin
   : '';
 
-async function executeViaApi(lang, code) {
+async function executeViaApi(lang, code, originalCode) {
   // Make sure this points to your new secure Node.js route
   const response = await fetch(`${API_BASE}/api/execute`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ 
       sourceCode: code, 
+      originalCode: originalCode,
       language: lang, 
       stdin: "" 
     })
@@ -2971,23 +3008,35 @@ async function executeCode(code, lang, problem) {
   
   let stdout = "", stderr = "", memory = "", cpuTime = "";
   
-  // We now route ALL languages (including JS) through our real API for consistency and real limits
   try {
-    const result = await executeViaApi(lang, harnessCode);
+    const result = await executeViaApi(lang, harnessCode, code);
     stdout = result.stdout;
     memory = result.memory;
     cpuTime = result.cpuTime;
   } catch (e) {
-    return { 
-      allPassed: false, 
-      testResults: testCases.map(() => ({ ran: false, passed: false, error: e.message })), 
-      rawOutput: e.message 
-    };
+    if (lang === "javascript" && isAiInterviewerActive) {
+      try {
+        const { executeSandboxedCode } = await import('./modules/code-executor.js');
+        const logs = await executeSandboxedCode(harnessCode, 5000);
+        stdout = logs.join("\n");
+      } catch (sandboxErr) {
+        return { 
+          allPassed: false, 
+          testResults: testCases.map(() => ({ ran: false, passed: false, error: sandboxErr.message })), 
+          rawOutput: sandboxErr.message 
+        };
+      }
+    } else {
+      return { 
+        allPassed: false, 
+        testResults: testCases.map(() => ({ ran: false, passed: false, error: e.message })), 
+        rawOutput: e.message 
+      };
+    }
   }
   
   const parsedResults = parseTestResults(stdout, testCases.length);
   
-  // Attach performance metrics to the result object
   parsedResults.metrics = {
     memory: memory || "N/A",
     cpuTime: cpuTime || "N/A"
@@ -3103,9 +3152,14 @@ async function submitQuizCode() {
       initTopicsSection();
       renderActivityHeatmap();
       const submittedId = problem.id;
-      closeQuizEditor();
-      clearEditorDraft(submittedId);
-      showNotification("Problem solved! +" + getXPForDifficulty(difficulty) + " XP", "success");
+      const sm2Container = document.getElementById("sm2RatingContainer");
+      if (sm2Container) {
+        sm2Container.style.display = "flex";
+      } else {
+        closeQuizEditor();
+        clearEditorDraft(submittedId);
+      }
+      showNotification("Problem solved! +" + getXPForDifficulty(difficulty) + " XP. Rate recall difficulty below.", "success");
     } else {
       const failures = result.testResults.filter(r => r && !r.passed);
       setOutput(failures.length + " / " + result.testResults.length + " tests failed. Fix the issues and try again.", "error");
@@ -3593,6 +3647,10 @@ function initializeQuizEditor() {
     else if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); runQuizCode(); }
     else if (e.ctrlKey && e.key === 's') { e.preventDefault(); submitQuizCode(); }
   });
+  const runBtn = document.getElementById('quizRunBtn');
+  const submitBtn = document.getElementById('quizSubmitBtn');
+  if (runBtn) runBtn.addEventListener('click', runQuizCode);
+  if (submitBtn) submitBtn.addEventListener('click', submitQuizCode);
   if (languageSelect) languageSelect.addEventListener('change', () => { const editor = document.getElementById('codeEditor'); if (editor && currentProblem) { editor.value = getDefaultCode(languageSelect.value, currentProblem); editor.scrollTop = 0; editor.scrollLeft = 0; } syncEditorState(); updateEditorDisplayMode(); });
   syncEditorState();
   initEditorZoom(editor);
@@ -3676,9 +3734,10 @@ async function runPerl() {
   if (!code) { if (output) output.textContent = "❌ No code provided"; isRunning = false; return; }
   if (output) output.textContent = "Running... ⏳";
   try {
-    const res = await fetch("http://localhost:5000/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
-    const data = await res.json().catch(() => ({}));
-    if (output) output.textContent = data.output || data.error || "No output";
+    // Route through the standard execution backend (API_BASE) instead of a
+    // hardcoded localhost URL, which fails as mixed content on the HTTPS site.
+    const result = await executeViaApi("perl", code);
+    if (output) output.textContent = result.stdout || "No output";
   } catch (err) { if (output) output.textContent = "Error: " + err.message; }
   isRunning = false;
 }
@@ -4343,6 +4402,180 @@ function showUpdateToast(worker) {
   }
 }
 
+window.switchQuizTab = function(tabName) {
+  const probBtn = document.getElementById("btnQuizTabProblem");
+  const notesBtn = document.getElementById("btnQuizTabNotes");
+  const probContent = document.getElementById("quizTabProblemContent");
+  const notesContent = document.getElementById("quizTabNotesContent");
+
+  if (tabName === "problem") {
+    if (probBtn) probBtn.classList.add("active");
+    if (notesBtn) notesBtn.classList.remove("active");
+    if (probContent) probContent.style.display = "block";
+    if (notesContent) notesContent.style.display = "none";
+  } else {
+    if (probBtn) probBtn.classList.remove("active");
+    if (notesBtn) notesBtn.classList.add("active");
+    if (probContent) probContent.style.display = "none";
+    if (notesContent) notesContent.style.display = "block";
+  }
+};
+
+window.saveActiveProblemNotes = async function() {
+  if (!currentProblem) return;
+
+  const notesVal = document.getElementById("noteText")?.value || "";
+  const mnemonicVal = document.getElementById("mnemonicText")?.value || "";
+  const pitfallsVal = document.getElementById("pitfallsText")?.value || "";
+  const whenToUseVal = document.getElementById("whenToUseText")?.value || "";
+  const tagsVal = (document.getElementById("noteTags")?.value || "")
+    .split(",")
+    .map(t => t.trim())
+    .filter(t => t.length > 0);
+
+  const noteSaveStatus = document.getElementById("noteSaveStatus");
+  if (noteSaveStatus) noteSaveStatus.textContent = "Saving...";
+
+  const noteData = {
+    topicKey: currentProblem.category || "general",
+    problemId: currentProblem.id,
+    notes: notesVal,
+    mnemonics: mnemonicVal,
+    pitfalls: pitfallsVal,
+    whenToUse: whenToUseVal,
+    tags: tagsVal,
+    updatedAt: new Date().toISOString()
+  };
+
+  if (!userProgress.problemNotes) userProgress.problemNotes = {};
+  userProgress.problemNotes[currentProblem.id] = noteData;
+
+  // Save to local storage
+  if (typeof saveUserData === "function") saveUserData();
+  else localStorage.setItem("algoInfinityVerse", JSON.stringify(userProgress));
+
+  try {
+    const res = await fetch(`/api/problem-notes/${currentProblem.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(noteData)
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (noteSaveStatus) {
+        noteSaveStatus.textContent = "Saved to cloud!";
+        setTimeout(() => { noteSaveStatus.textContent = ""; }, 3000);
+      }
+    } else {
+      if (noteSaveStatus) noteSaveStatus.textContent = "Saved locally.";
+    }
+  } catch (err) {
+    console.warn("Cloud sync failed:", err);
+    if (noteSaveStatus) noteSaveStatus.textContent = "Saved locally (offline).";
+  }
+};
+
+window.syncProblemNotesDown = async function() {
+  if (location.protocol === "file:") return;
+  try {
+    const res = await fetch("/api/problem-notes");
+    if (res.status === 200) {
+      const data = await res.json();
+      if (data.success && data.notes) {
+        userProgress.problemNotes = { ...(userProgress.problemNotes || {}), ...data.notes };
+        if (typeof saveUserData === "function") saveUserData();
+        else localStorage.setItem("algoInfinityVerse", JSON.stringify(userProgress));
+      }
+    }
+  } catch (err) {
+    console.warn("Could not sync notes down:", err);
+  }
+};
+
+window.rateRecallDifficulty = async function(quality) {
+  if (!currentProblem) return;
+  const problemId = currentProblem.id;
+
+  if (!userProgress.spacedRepetition) userProgress.spacedRepetition = {};
+  const existing = userProgress.spacedRepetition[problemId] || { repetitions: 0, easeFactor: 2.5, interval: 0 };
+
+  try {
+    const res = await fetch(`/api/spaced-repetition/${problemId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ existing, quality })
+    });
+    const data = await res.json();
+    if (data.success && data.card) {
+      userProgress.spacedRepetition[problemId] = data.card;
+      if (quality >= 3) {
+        userProgress.reviewStreak = (userProgress.reviewStreak || 0) + 1;
+      }
+      saveUserData();
+      showNotification(`Scheduled! Next review in ${data.card.interval} days 📅`, "success");
+    } else {
+      showNotification("Could not schedule on cloud. Saved locally.", "info");
+    }
+  } catch (err) {
+    console.warn("Spaced repetition sync failed:", err);
+    
+    // Client-side fallback computation
+    const q = Math.max(0, Math.min(5, Number(quality)));
+    let { repetitions = 0, easeFactor = 2.5, interval = 0 } = existing;
+    if (q < 3) {
+      repetitions = 0;
+      interval = 1;
+    } else {
+      repetitions += 1;
+      if (repetitions === 1) interval = 1;
+      else if (repetitions === 2) interval = 6;
+      else interval = Math.round(interval * easeFactor);
+      userProgress.reviewStreak = (userProgress.reviewStreak || 0) + 1;
+    }
+    easeFactor = easeFactor + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+    if (easeFactor < 1.3) easeFactor = 1.3;
+
+    const nextReviewDate = new Date();
+    nextReviewDate.setDate(nextReviewDate.getDate() + interval);
+
+    userProgress.spacedRepetition[problemId] = {
+      problemId,
+      repetitions,
+      easeFactor: Math.round(easeFactor * 100) / 100,
+      interval,
+      lastReviewed: new Date().toISOString(),
+      nextReviewDate: nextReviewDate.toISOString(),
+      lastQuality: q
+    };
+    saveUserData();
+    showNotification(`Next review in ${interval} days 📅`, "success");
+  }
+
+  const submittedId = currentProblem.id;
+  closeQuizEditor();
+  clearEditorDraft(submittedId);
+  if (typeof refreshReviewQueue === "function") {
+    refreshReviewQueue();
+  }
+};
+
+window.syncSpacedRepetitionDown = async function() {
+  if (location.protocol === "file:") return;
+  try {
+    const res = await fetch("/api/spaced-repetition");
+    if (res.status === 200) {
+      const data = await res.json();
+      if (data.success && data.cards) {
+        userProgress.spacedRepetition = { ...(userProgress.spacedRepetition || {}), ...data.cards };
+        if (typeof saveUserData === "function") saveUserData();
+        else localStorage.setItem("algoInfinityVerse", JSON.stringify(userProgress));
+      }
+    }
+  } catch (err) {
+    console.warn("Could not sync spaced repetition down:", err);
+  }
+};
+
 let refreshing = false;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -4368,4 +4601,14 @@ window.addEventListener('load', () => {
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
   updateOnlineStatus();
+
+  // Sync notes on load
+  if (window.syncProblemNotesDown) {
+    window.syncProblemNotesDown();
+  }
+  
+  // Sync spaced repetition on load
+  if (window.syncSpacedRepetitionDown) {
+    window.syncSpacedRepetitionDown();
+  }
 });

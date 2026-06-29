@@ -37,8 +37,10 @@ async function checkRedis() {
   }
 }
 
-// Perform checking asynchronously
-checkRedis().catch(() => {});
+// Perform checking asynchronously. Consumers (e.g. the worker) must await this
+// promise before reading `redisAvailable`, otherwise they observe the initial
+// `false` value before the probe has resolved.
+const redisReady = checkRedis().catch(() => {});
 
 // Hard cap on repositories processed per bulk audit. Each URL fans out to one
 // or more outbound GitHub requests, so an unbounded list is an unauthenticated
@@ -112,4 +114,4 @@ export function getBatchProgress(batchId) {
   return { ...batch, progress };
 }
 
-export { bulkAuditQueue, redisAvailable };
+export { bulkAuditQueue, redisAvailable, redisReady };
