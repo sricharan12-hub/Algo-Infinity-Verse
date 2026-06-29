@@ -115,7 +115,8 @@ class NetworkSimulator {
         this.isFrozen = false;
         this.frozenQueue = []; // Holds operations while frozen
         this.delay = 2000;
-        
+        this.timeouts = new Set(); // Tracks in-flight delivery timers so they can be cancelled on reset
+
         this.ui = {
             laneAtoB: document.getElementById('trackAtoB'),
             laneBtoA: document.getElementById('trackBtoA')
@@ -148,10 +149,26 @@ class NetworkSimulator {
         track.appendChild(el);
 
         // Deliver payload when animation finishes
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
+            this.timeouts.delete(timeoutId);
             el.remove();
             deliverToSite(packet.to, packet.op);
         }, this.delay);
+        this.timeouts.add(timeoutId);
+    }
+
+    // Fully reset the simulator: cancel pending deliveries, clear queued/frozen
+    // state, and wipe the packet tracks. Prevents in-flight packets from firing
+    // into freshly-cleared documents ("ghost characters").
+    reset() {
+        this.timeouts.forEach(id => clearTimeout(id));
+        this.timeouts.clear();
+
+        this.isFrozen = false;
+        this.frozenQueue = [];
+
+        if (this.ui.laneAtoB) this.ui.laneAtoB.innerHTML = '';
+        if (this.ui.laneBtoA) this.ui.laneBtoA.innerHTML = '';
     }
 
     renderFrozenPacket(packet) {
@@ -294,12 +311,19 @@ function bindEvents() {
     });
 
     els.btnClearAll.addEventListener('click', () => {
+        // Cancel in-flight packets and reset network state before rebuilding docs
+        network.reset();
+
         els.editorA.value = '';
         els.editorB.value = '';
         docA = new CRDTDocument('A', () => renderTable('A'));
         docB = new CRDTDocument('B', () => renderTable('B'));
         renderTable('A');
         renderTable('B');
+
+        // Network is no longer frozen after a reset — restore button state
+        els.btnResumeNetwork.classList.add('hidden');
+        els.btnFreezeNetwork.classList.remove('hidden');
     });
 }
 
