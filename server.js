@@ -2324,7 +2324,7 @@ async function serveStatic(req, res, pathname) {
     if (ext === ".html") {
       htmlContent = await fs.readFile(target, "utf-8");
       const requiresAuth =
-        /<meta\s+name=["']auth-required["']\s+content=["']true["']\s*\/?>/i.test(htmlContent);
+        /<meta\b(?=[^>]*\sname\s*=\s*["']auth-required["'])(?=[^>]*\scontent\s*=\s*["']true["'])[^>]*>/i.test(htmlContent);
       if (requiresAuth && !getSession(req)) {
         return redirect(res, `/login?next=${encodeURIComponent(pathname)}`);
       }
