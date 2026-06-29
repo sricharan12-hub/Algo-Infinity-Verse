@@ -37,8 +37,10 @@ async function checkRedis() {
   }
 }
 
-// Perform checking asynchronously
-checkRedis().catch(() => {});
+// Perform checking asynchronously. Consumers (e.g. the worker) must await this
+// promise before reading `redisAvailable`, otherwise they observe the initial
+// `false` value before the probe has resolved.
+const redisReady = checkRedis().catch(() => {});
 
 /**
  * Enqueues a batch of repositories for analysis.
@@ -103,4 +105,4 @@ export function getBatchProgress(batchId) {
   return { ...batch, progress };
 }
 
-export { bulkAuditQueue, redisAvailable };
+export { bulkAuditQueue, redisAvailable, redisReady };
