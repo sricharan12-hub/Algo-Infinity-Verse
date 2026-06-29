@@ -166,6 +166,27 @@
             <p>Advanced roadmap for top-tier companies — complex algorithms, system design, and mock rounds.</p>
             <span class="goal-topics-count">9 Topics · ~130h</span>
           </div>
+          <div class="goal-card" data-goal="personalized" role="radio" aria-checked="false" tabindex="0">
+            <span class="goal-card-icon"><i class="fas fa-magic" style="color: #a855f7;" aria-hidden="true" focusable="false"></i></span>
+            <h3>Dynamic Learning Path (AI)</h3>
+            <p>A dynamically calculated curriculum targeting your weaknesses, retry history, and custom prep time window.</p>
+            <span class="goal-topics-count">Adaptive · Custom Hours</span>
+          </div>
+        </div>
+
+        <!-- Prep Time Selector (visible only when personalized path is chosen) -->
+        <div id="personalizedInputRow" class="daily-goal-row" style="display: none; flex-direction: column; gap: 0.75rem; align-items: flex-start; margin-top: 1rem; margin-bottom: 1.5rem; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 1.25rem; border-radius: 12px;">
+          <div style="display:flex; align-items:center; gap:0.5rem; width:100%; flex-wrap:wrap;">
+            <label for="prepWeeksInput" style="font-weight:600;">Preparation Time Horizon:</label>
+            <div class="daily-input-wrap" style="margin:0;">
+              <input type="number" id="prepWeeksInput" min="1" max="12" value="2" style="width: 80px; text-align:center;">
+              <span>weeks prep</span>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.5rem; width:100%; margin-top:0.5rem; flex-wrap:wrap;">
+            <label for="customRefinementText" style="font-weight:600;">Custom prep constraint / focus:</label>
+            <input type="text" id="customRefinementText" class="control-input" placeholder="e.g. Focus on graph algorithms for Google" style="flex:1; max-width: 400px; padding:0.4rem 0.6rem; background:rgba(0,0,0,0.2); border:1px solid var(--glass-border); border-radius:6px; color:white; font-size:0.9rem;">
+          </div>
         </div>
 
         <!-- Daily Goal -->
