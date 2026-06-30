@@ -1268,42 +1268,152 @@ function initPracticeSection() {
     });
   });
 
-  // AI Recommend Button
+  // AI Recommend Button variables for debouncing & aborting
+  let aiRecommendDebounceTimer = null;
+  let aiRecommendAbortController = null;
+  let recommendationRequestCounter = 0;
+
   const aiRecommendBtn = document.getElementById("ai-recommend-btn");
-  if (aiRecommendBtn) {
-    aiRecommendBtn.addEventListener("click", async () => {
-      try {
+  const aiRecommendStatus = document.getElementById("ai-recommend-status");
+  const aiRecommendStatusMsg = document.getElementById("ai-recommend-status-msg");
+  const aiRecommendDisableToggle = document.getElementById("ai-recommend-disable-toggle");
+  const aiRecommendDebounceInput = document.getElementById("ai-recommend-debounce-input");
+
+  function updateRecommendationStatus(text, type, requestId) {
+    // Only update if this request matches the latest request counter
+    if (requestId !== undefined && requestId !== recommendationRequestCounter) return;
+
+    if (aiRecommendStatusMsg) {
+      aiRecommendStatusMsg.textContent = text;
+      aiRecommendStatusMsg.style.opacity = text ? "1" : "0";
+      
+      if (type === "cancelled") {
+        aiRecommendStatusMsg.style.color = "#ff9800"; // Orange
+      } else if (type === "success") {
+        aiRecommendStatusMsg.style.color = "#4caf50"; // Green
+      } else if (type === "loading") {
+        aiRecommendStatusMsg.style.color = "#3b82f6"; // Blue
+      } else if (type === "waiting") {
+        aiRecommendStatusMsg.style.color = "#a1a1aa"; // Grey
+      } else {
+        aiRecommendStatusMsg.style.color = "";
+      }
+    }
+    
+    if (aiRecommendStatus) {
+      aiRecommendStatus.textContent = text;
+    }
+  }
+
+  async function startRecommendationRequest(requestId, disableOnFetch) {
+    aiRecommendAbortController = new AbortController();
+    const signal = aiRecommendAbortController.signal;
+
+    try {
+      if (aiRecommendBtn) {
         aiRecommendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Finding...';
-        aiRecommendBtn.disabled = true;
-        
-        const res = await fetch("/api/recommendations/next");
-        if (res.status === 401) {
-           alert("Please log in to get AI recommendations.");
-           return;
+        if (disableOnFetch) {
+          aiRecommendBtn.disabled = true;
         }
-        const data = await res.json();
-        
-        if (data.success && data.recommendation) {
-           const rec = data.recommendation;
-           currentFilter = rec.topic.toLowerCase();
-           currentPage = 1;
-           
-           filterButtons.forEach((b) => {
-             if(b.dataset.filter === currentFilter) b.classList.add("active");
-             else b.classList.remove("active");
-           });
-           
-           renderProblems();
-           alert("AI Recommendation: " + rec.reason + "\n\n" + (rec.aiTip || ""));
+      }
+      updateRecommendationStatus("Finding...", "loading", requestId);
+
+      const res = await fetch("/api/recommendations/next", { signal });
+      if (requestId !== recommendationRequestCounter) return;
+
+      if (res.status === 401) {
+         alert("Please log in to get AI recommendations.");
+         updateRecommendationStatus("Authentication required", "cancelled", requestId);
+         return;
+      }
+      const data = await res.json();
+      if (requestId !== recommendationRequestCounter) return;
+      
+      if (data.success && data.recommendation) {
+         const rec = data.recommendation;
+         currentFilter = rec.topic.toLowerCase();
+         currentPage = 1;
+         
+         filterButtons.forEach((b) => {
+           if(b.dataset.filter === currentFilter) b.classList.add("active");
+           else b.classList.remove("active");
+         });
+         
+         renderProblems();
+         updateRecommendationStatus("New result", "success", requestId);
+         alert("AI Recommendation: " + rec.reason + "\n\n" + (rec.aiTip || ""));
+      } else {
+         alert("Could not get recommendation.");
+         updateRecommendationStatus("Failed", "cancelled", requestId);
+      }
+    } catch (err) {
+       if (err.name === 'AbortError') {
+          console.log("AI recommend request was cancelled.");
+          // Update status if it's the latest request
+          updateRecommendationStatus("Request cancelled", "cancelled", requestId);
+       } else {
+          console.error("AI recommend error:", err);
+          alert("Failed to fetch recommendation.");
+          updateRecommendationStatus("Failed", "cancelled", requestId);
+       }
+    } finally {
+       // Only clean up UI/state if this is the active request
+       if (requestId === recommendationRequestCounter) {
+         aiRecommendAbortController = null;
+         if (aiRecommendBtn) {
+           aiRecommendBtn.innerHTML = '<i class="fas fa-magic"></i> AI Recommend Next';
+           aiRecommendBtn.disabled = false;
+         }
+       }
+    }
+  }
+
+  if (aiRecommendBtn) {
+    aiRecommendBtn.addEventListener("click", () => {
+      const disableOnFetch = aiRecommendDisableToggle ? aiRecommendDisableToggle.checked : false;
+      const debounceDelayVal = aiRecommendDebounceInput ? parseInt(aiRecommendDebounceInput.value, 10) : 500;
+      const debounceDelay = isNaN(debounceDelayVal) ? 500 : debounceDelayVal;
+
+      // Increment request counter
+      recommendationRequestCounter++;
+      const currentRequestId = recommendationRequestCounter;
+
+      // Clear any pending debounce timer
+      if (aiRecommendDebounceTimer) {
+        clearTimeout(aiRecommendDebounceTimer);
+        aiRecommendDebounceTimer = null;
+      }
+
+      let abortedActiveRequest = false;
+
+      // Abort active request if any
+      if (aiRecommendAbortController) {
+        abortedActiveRequest = true;
+        aiRecommendAbortController.abort();
+        aiRecommendAbortController = null;
+        // Immediate status update to cancelled
+        updateRecommendationStatus("Request cancelled", "cancelled", currentRequestId);
+      }
+
+      const launchRecommendationRequest = () => {
+        startRecommendationRequest(currentRequestId, disableOnFetch);
+      };
+
+      if (debounceDelay === 0) {
+        if (abortedActiveRequest) {
+          aiRecommendDebounceTimer = setTimeout(() => {
+            aiRecommendDebounceTimer = null;
+            launchRecommendationRequest();
+          }, 150);
         } else {
-           alert("Could not get recommendation.");
+          launchRecommendationRequest();
         }
-      } catch (err) {
-         console.error("AI recommend error:", err);
-         alert("Failed to fetch recommendation.");
-      } finally {
-         aiRecommendBtn.innerHTML = '<i class="fas fa-magic"></i> AI Recommend Next';
-         aiRecommendBtn.disabled = false;
+      } else {
+        updateRecommendationStatus("Waiting...", "waiting", currentRequestId);
+        aiRecommendDebounceTimer = setTimeout(() => {
+          aiRecommendDebounceTimer = null;
+          startRecommendationRequest(currentRequestId, disableOnFetch);
+        }, debounceDelay);
       }
     });
   }
