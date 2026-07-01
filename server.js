@@ -58,7 +58,8 @@ import {
   repoAnalysisLimiter,
   sdlcAdvisorLimiter,
   predictionLimiter,
-  bulkAuditLimiter
+  bulkAuditLimiter,
+  logErrorLimiter
 } from "./backend/utils/rateLimiter.js";
 import { applySM2 } from "./backend/services/memory.service.js";
 import { sendVerificationEmail } from "./backend/services/email.service.js";
@@ -107,6 +108,15 @@ const MEMORY_FILE = path.join(DATA_DIR, "memory.json");
 const TEAM_PROFILES_FILE = path.join(DATA_DIR, "team_profiles.json");
 const AUDITS_FILE = path.join(DATA_DIR, "audits_history.json");
 const EXECUTIONS_FILE = path.join(DATA_DIR, "executions.json");
+const CLIENT_ERRORS_FILE = path.join(DATA_DIR, "client_errors.json");
+const FEEDBACK_FILE = path.join(DATA_DIR, "feedback.json");
+const INTERVIEW_EXPERIENCES_FILE = path.join(DATA_DIR, "interview-experiences.json");
+
+// Caps for append-only JSON logs so they can never grow unbounded on disk.
+const MAX_CLIENT_ERROR_ENTRIES = 1000;
+const MAX_FEEDBACK_ENTRIES = 5000;
+const MAX_INTERVIEW_EXPERIENCE_ENTRIES = 5000;
+const MAX_AUDIT_HISTORY_ENTRIES = 1000;
 const SESSION_COOKIE = "aiv_session";
 const ACCESS_COOKIE = "aiv_access";
 const REFRESH_COOKIE = "aiv_refresh";
