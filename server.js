@@ -634,6 +634,7 @@ async function handleApi(req, res, pathname) {
             source_code: b64(sourceCode),
             language_id: languageId,
             stdin: b64(stdin || ""),
+            compiler_options: languageId === 54 ? '-std=c++17' : undefined,
           })
         });
 

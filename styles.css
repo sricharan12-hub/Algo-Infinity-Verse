@@ -1347,7 +1347,7 @@ html.light-mode .recent-item.selected {
   /* Practice modal: reduce max-width and padding on tablets */
   .quiz-modal-content {
     max-width: 95%;
-    max-height: 95vh;
+    height: 85vh;
   }
 
   .quiz-problem-panel {
@@ -4116,9 +4116,9 @@ body.modal-open {
 }
 
 .quiz-modal-content {
-  max-width: 1000px;
+  max-width: 1300px;
   width: 95%;
-  max-height: 95vh;
+  height: 85vh;
   border-radius: 20px;
   display: flex;
   flex-direction: column;
@@ -4200,7 +4200,7 @@ body.modal-open {
 }
 
 .quiz-problem-panel {
-  flex: 0.35;
+  flex: 0.24;
   padding: 1.25rem;
   border-right: 1px solid var(--glass-border);
   background: var(--dark-bg);
@@ -4211,7 +4211,7 @@ body.modal-open {
 }
 
 .quiz-editor-panel {
-  flex: 0.65;
+  flex: 0.76;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -4505,8 +4505,6 @@ body.modal-open {
 }
 
 .test-cases-container {
-  max-height: 180px;
-  overflow-y: auto;
   overflow-x: hidden;
 }
 
@@ -4903,8 +4901,8 @@ body.modal-open {
   background: var(--dark-surface);
   border: 1px solid var(--glass-border);
   width: 100%;
-  max-width: 1100px;
-  max-height: 95vh;
+  max-width: 1300px;
+  height: 85vh;
   border-radius: 20px;
   overflow: hidden;
   display: flex;
@@ -5831,6 +5829,11 @@ html.light-mode .nav-auth-link:hover {
   border-top: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
+}
+
+.output-panel.collapsed {
+  flex: 0 0 auto;
 }
 
 .output-panel.collapsed .output-content {
@@ -8188,7 +8191,6 @@ html.light-mode .nav-auth-link:hover {
 
   .quiz-problem-panel .test-cases-container,
   .test-cases-container {
-    max-height: 120px;
     padding: 0.75rem;
     margin-top: 0.75rem;
   }
@@ -8295,7 +8297,6 @@ html.light-mode .nav-auth-link:hover {
 
   .quiz-problem-panel .test-cases-container,
   .test-cases-container {
-    max-height: 100px;
   }
 
   .quiz-problem-panel {
@@ -8353,7 +8354,6 @@ html.light-mode .nav-auth-link:hover {
 
   .quiz-problem-panel .test-cases-container,
   .test-cases-container {
-    max-height: 80px;
   }
 
   .quiz-problem-panel {

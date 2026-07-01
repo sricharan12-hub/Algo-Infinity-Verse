@@ -383,7 +383,7 @@ const practiceProblems = [
   { id: 9, title: "Trapping Rain Water", difficulty: "hard", tags: ["Arrays", "Two Pointers"], acceptance: "48.7%", category: "arrays", description: "Given n non-negative integers representing an elevation map where the width of each bar is 1, compute how much water it can trap after raining.", constraints: ["1 ≤ height.length ≤ 2 × 10⁴", "0 ≤ height[i] ≤ 10⁵"], followUp: "Can you solve it in O(n) time and O(1) space using the two-pointer technique?", functionName: "trap", params: ["height"], guide: "height: array of non-negative integers representing bar heights in the elevation map\nreturns: total units of rainwater that can be trapped between the bars\n\nHint: Use two pointers (left at 0, right at end). Track maxLeft and maxRight. At each step, process the shorter side: if height[left] < height[right], water += max(0, maxLeft - height[left]), else water += max(0, maxRight - height[right]).", testCases: [{ input: [[0,1,0,2,1,0,1,3,2,1,2,1]], expected: 6 }, { input: [[4,2,0,3,2,5]], expected: 9 }] },
   { id: 10, title: "Reverse Linked List", difficulty: "easy", tags: ["Linked List"], acceptance: "72.1%", category: "linkedlist", description: "Given an array representing a linked list, reverse it and return the reversed array.", constraints: ["0 ≤ arr.length ≤ 5000", "-5000 ≤ arr[i] ≤ 5000"], followUp: "Can you solve it both iteratively and recursively?", functionName: "reverseList", params: ["head"], guide: "head: array of integers representing the linked list values\nreturns: reversed array with elements in opposite order\n\nHint: Use two pointers (prev starts empty, curr starts at head). Iterate through, reversing each element's position.", testCases: [{ input: [[1,2,3,4,5]], expected: [5,4,3,2,1] }, { input: [[1,2]], expected: [2,1] }, { input: [[]], expected: [] }] },
   { id: 11, title: "Invert Binary Tree", difficulty: "easy", tags: ["Trees", "DFS"], acceptance: "68.5%", category: "trees", description: "Given a binary tree represented as a level-order array, invert it and return the inverted level-order array.", constraints: ["0 ≤ arr.length ≤ 100", "-100 ≤ arr[i] ≤ 100"], followUp: "Can you solve it both recursively and iteratively using a queue or stack?", functionName: "invertTree", params: ["root"], guide: "root: level-order array of integers representing the binary tree (null for missing nodes)\nreturns: level-order array of the inverted binary tree (swapped left/right children)\n\nHint: Recursively swap left and right children at each node. Base case: when root is null or empty.", testCases: [{ input: [[4,2,7,1,3,6,9]], expected: [4,7,2,9,6,3,1] }, { input: [[2,1,3]], expected: [2,3,1] }, { input: [[]], expected: [] }] },
-  { id: 12, title: "Validate BST", difficulty: "medium", tags: ["Trees", "Recursion"], acceptance: "28.4%", category: "trees", description: "Given a binary tree represented as a level-order array (null for missing children), determine if it is a valid BST.", constraints: ["1 ≤ arr.length ≤ 10⁴", "-2³¹ ≤ arr[i] ≤ 2³¹ - 1"], followUp: "Can you solve it without recursion?", functionName: "isValidBST", testCases: [{ input: [[2,1,3]], expected: true }, { input: [[5,1,4,null,null,3,6]], expected: false }] },
+  { id: 12, title: "Validate BST", difficulty: "medium", tags: ["Trees", "Recursion"], acceptance: "28.4%", category: "trees", description: "Given a binary tree represented as a level-order array (null for missing children), determine if it is a valid BST.", constraints: ["1 ≤ arr.length ≤ 10⁴", "-2³¹ ≤ arr[i] ≤ 2³¹ - 1"], followUp: "Can you solve it without recursion?", functionName: "isValidBST", params: ["root"], guide: "root: level-order array of integers representing the binary tree (null for missing nodes)\nreturns: true if the tree is a valid BST (left < root < right for every node), false otherwise", testCases: [{ input: [[2,1,3]], expected: true }, { input: [[5,1,4,null,null,3,6]], expected: false }] },
   { id: 13, title: "Number of Islands", difficulty: "medium", tags: ["Graphs", "DFS"], acceptance: "54.8%", category: "graphs", description: "Given an m x n 2D binary grid which represents a map of '1's (land) and '0's (water), return the number of islands.", constraints: ["1 ≤ m, n ≤ 300", "grid[i][j] is '0' or '1'"], followUp: "Can you solve it using both DFS and Union-Find?", functionName: "numIslands", testCases: [{ input: [[["1","1","1","1","0"],["1","1","0","1","0"],["1","1","0","0","0"],["0","0","0","0","0"]]], expected: 1 }, { input: [[["1","1","0","0","0"],["1","1","0","0","0"],["0","0","1","0","0"],["0","0","0","1","1"]]], expected: 3 }, { input: [[["0"]]], expected: 0 }] },
   { id: 14, title: "House Robber", difficulty: "medium", tags: ["DP", "Arrays"], acceptance: "42.3%", category: "dp", description: "You are a professional robber planning to rob houses along a street. Return the maximum amount of money you can rob without robbing two adjacent houses.", constraints: ["1 ≤ nums.length ≤ 100", "0 ≤ nums[i] ≤ 400"], followUp: "What if the houses are arranged in a circle?", functionName: "rob", testCases: [{ input: [[1,2,3,1]], expected: 4 }, { input: [[2,7,9,3,1]], expected: 12 }, { input: [[2,1,1,2]], expected: 4 }] },
   { id: 15, title: "Course Schedule", difficulty: "medium", tags: ["Graphs", "Topological Sort"], acceptance: "44.7%", category: "graphs", description: "There are numCourses courses. Given prerequisites, return true if you can finish all courses.", constraints: ["1 ≤ numCourses ≤ 2000", "0 ≤ prerequisites.length ≤ 5000", "prerequisites[i].length == 2"], followUp: "Can you return the actual valid course order?", functionName: "canFinish", testCases: [{ input: [2, [[1,0]]], expected: true }, { input: [2, [[1,0],[0,1]]], expected: false }] },
@@ -1615,6 +1615,10 @@ function openTopicModal(topic) {
         if (match) openQuizEditor(match);
       }, 600);
     };
+  }
+  const modalCloseBtn = document.getElementById("modalClose");
+  if (modalCloseBtn) {
+    modalCloseBtn.onclick = () => closeTopicModal();
   }
   modal.classList.add("active");
 }
@@ -3219,6 +3223,10 @@ function openQuizEditor(problem) {
   const outputIcon = document.getElementById('outputToggleIcon');
   if (outputPanel) outputPanel.classList.remove('collapsed');
   if (outputIcon) { outputIcon.classList.remove('fa-chevron-up'); outputIcon.classList.add('fa-chevron-down'); }
+  const quizCloseBtn = document.getElementById("quizModalClose");
+  if (quizCloseBtn) {
+    quizCloseBtn.onclick = () => closeQuizEditor();
+  }
   modal.classList.add("active");
   updateLineNumbers();
   syncScroll();
@@ -3309,23 +3317,36 @@ function getDefaultCode(lang, problem) {
     return getClassTemplate(lang, problem);
   }
 
+  const hasNullableInt = problem.testCases?.some(tc =>
+    tc.input.some(v => Array.isArray(v) && v.some(x => x === null || x === undefined))
+  );
+
   const paramTypes = tc?.input ? tc.input.map(v => mapType(j2t(v), lang)) : [];
   const retType = tc?.expected !== undefined ? mapType(j2t(tc.expected), lang) : 'auto';
 
+  const cppIntType = hasNullableInt ? 'vector<optional<int>>' : 'vector<int>';
+
   const paramStr = params.length
     ? params.map((p, i) => {
-        const t = paramTypes[i] || 'auto';
-        if (lang === 'cpp') return t + ' ' + p;
+        let t = paramTypes[i] || 'auto';
+        if (lang === 'cpp') {
+          if (t === 'vector<int>' && hasNullableInt) t = cppIntType;
+          return t + ' ' + p;
+        }
         if (lang === 'c') {
           const origJt = tc?.input ? j2t(tc.input[i]) : null;
           const is2d = origJt === 'int[][]';
           const isArray = origJt && origJt.endsWith('[]');
           if (is2d) return t + ' ' + p + ', int* ' + p + 'Sizes, int ' + p + 'Size';
+          if (isArray && hasNullableInt && origJt === 'int[]') return t + ' ' + p + ', int* ' + p + 'Valid, int ' + p + 'Size';
           if (isArray) return t + ' ' + p + ', int ' + p + 'Size';
           return t + ' ' + p;
         }
         if (lang === 'java') return t + ' ' + p;
-        if (lang === 'swift') return '_ ' + p + ': ' + t;
+        if (lang === 'swift') {
+          if (t === '[Int]' && hasNullableInt) t = '[Int?]';
+          return '_ ' + p + ': ' + t;
+        }
         return p;
       }).join(', ')
     : 'params';
@@ -3337,11 +3358,15 @@ function getDefaultCode(lang, problem) {
     docComment = lines.map(l => prefix + l).join('\n') + '\n';
   }
 
+  const cppDefaultIncludes = hasNullableInt
+    ? '#include <optional>\n#include <string>\n#include <stack>\n#include <climits>\nusing namespace std;\n\n'
+    : '#include <string>\n#include <stack>\nusing namespace std;\n\n';
+
   const templates = {
     javascript: docComment + "function " + fnName + "(" + (params.join(', ') || 'params') + ") {\n    \n}",
     python: docComment + "def " + fnName + "(" + (params.join(', ') || 'params') + "):\n    pass\n",
     java: "class Solution {\n" + docComment.replace(/^(.)/gm, '    $1') + "    public " + retType + " " + fnName + "(" + paramStr + ") {\n        \n    }\n}",
-    cpp: '#include <string>\n#include <stack>\nusing namespace std;\n\n' + docComment + retType + " " + fnName + "(" + paramStr + ") {\n    \n}",
+    cpp: cppDefaultIncludes + docComment + retType + " " + fnName + "(" + paramStr + ") {\n    \n}",
     c: '#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdbool.h>\n\n' + docComment + retType + " " + fnName + "(" + paramStr + ") {\n    \n}",
     swift: docComment + "func " + fnName + "(" + paramStr + ") -> " + retType + " {\n    \n}"
   };
@@ -3349,7 +3374,7 @@ function getDefaultCode(lang, problem) {
 }
 
 function generateExamples(problem) {
-  const examples = { 1: `<strong>Example 1:</strong><br>Input: nums = [2,7,11,15], target = 9<br>Output: [0,1]<br><br><strong>Follow-up:</strong> Can you solve it in O(n) using a Hash Map?`, 2: `<strong>Example 1:</strong><br>Input: s = "()"<br>Output: true<br><br><strong>Follow-up:</strong> Can you solve it in O(n) using a Stack?`, 3: `<strong>Example 1:</strong><br>Input: list1 = [1,2,4], list2 = [1,3,4]<br>Output: [1,1,2,3,4,4]<br><br><strong>Follow-up:</strong> Can you solve it both iteratively and recursively?`, 4: `<strong>Example 1:</strong><br>Input: nums = [-2,1,-3,4,-1,2,1,-5,4]<br>Output: 6<br><br><strong>Follow-up:</strong> Can you solve it using Kadane's Algorithm in O(n)?`, 6: `<strong>Example 1:</strong><br>Input: adjList = [[2,4],[1,3],[2,4],[1,3]]<br>Output: [[2,4],[1,3],[2,4],[1,3]]<br><br><strong>Follow-up:</strong> Can you solve it using both BFS and DFS approaches?`, 7: `<strong>Example 1:</strong><br>Input: nums = [10,9,2,5,3,7,101,18]<br>Output: 4<br><br><strong>Follow-up:</strong> Can you improve from O(n²) to O(n log n) using binary search?`, 9: `<strong>Example 1:</strong><br>Input: height = [0,1,0,2,1,0,1,3,2,1,2,1]<br>Output: 6<br><br><strong>Follow-up:</strong> Can you solve it in O(n) time and O(1) space using the two-pointer technique?`, 10: `<strong>Example 1:</strong><br>Input: head = [1,2,3,4,5]<br>Output: [5,4,3,2,1]<br><br><strong>Follow-up:</strong> Can you solve it both iteratively and recursively?`, 11: `<strong>Example 1:</strong><br>Input: root = [4,2,7,1,3,6,9]<br>Output: [4,7,2,9,6,3,1]<br><br><strong>Follow-up:</strong> Can you solve it both recursively and iteratively using a queue or stack?` };
+  const examples = { 1: `<strong>Example 1:</strong><br>Input: nums = [2,7,11,15], target = 9<br>Output: [0,1]<br><br><strong>Follow-up:</strong> Can you solve it in O(n) using a Hash Map?`, 2: `<strong>Example 1:</strong><br>Input: s = "()"<br>Output: true<br><br><strong>Follow-up:</strong> Can you solve it in O(n) using a Stack?`, 3: `<strong>Example 1:</strong><br>Input: list1 = [1,2,4], list2 = [1,3,4]<br>Output: [1,1,2,3,4,4]<br><br><strong>Follow-up:</strong> Can you solve it both iteratively and recursively?`, 4: `<strong>Example 1:</strong><br>Input: nums = [-2,1,-3,4,-1,2,1,-5,4]<br>Output: 6<br><br><strong>Follow-up:</strong> Can you solve it using Kadane's Algorithm in O(n)?`, 6: `<strong>Example 1:</strong><br>Input: adjList = [[2,4],[1,3],[2,4],[1,3]]<br>Output: [[2,4],[1,3],[2,4],[1,3]]<br><br><strong>Follow-up:</strong> Can you solve it using both BFS and DFS approaches?`, 7: `<strong>Example 1:</strong><br>Input: nums = [10,9,2,5,3,7,101,18]<br>Output: 4<br><br><strong>Follow-up:</strong> Can you improve from O(n²) to O(n log n) using binary search?`, 9: `<strong>Example 1:</strong><br>Input: height = [0,1,0,2,1,0,1,3,2,1,2,1]<br>Output: 6<br><br><strong>Follow-up:</strong> Can you solve it in O(n) time and O(1) space using the two-pointer technique?`, 10: `<strong>Example 1:</strong><br>Input: head = [1,2,3,4,5]<br>Output: [5,4,3,2,1]<br><br><strong>Follow-up:</strong> Can you solve it both iteratively and recursively?`, 11: `<strong>Example 1:</strong><br>Input: root = [4,2,7,1,3,6,9]<br>Output: [4,7,2,9,6,3,1]<br><br><strong>Follow-up:</strong> Can you solve it both recursively and iteratively using a queue or stack?`, 12: `<strong>Example 1:</strong><br>Input: root = [2,1,3]<br>Output: true<br><br><strong>Follow-up:</strong> Can you solve it without recursion using iterative inorder traversal?` };
   return examples[problem.id] || "<strong>Example:</strong><br>Solve this problem";
 }
 
@@ -3457,11 +3482,15 @@ function valToLit(v, t) {
 function genCppHarness(code, fn, tcs, isClass) {
   const outType = j2t(tcs[0].expected);
   const inTypes = tcs[0].input.map(v => j2t(v));
-  let s = '#include <iostream>\n#include <string>\n#include <vector>\n#include <sstream>\nusing namespace std;\n\n';
+  const hasNullableInt = inTypes.some(t => t === 'int[]') && tcs.some(tc => tc.input.some((v, i) => inTypes[i] === 'int[]' && Array.isArray(v) && v.some(x => x === null || x === undefined)));
+  let s = '#include <iostream>\n#include <string>\n#include <vector>\n' + (hasNullableInt ? '#include <optional>\n' : '') + '#include <sstream>\nusing namespace std;\n\n';
   s += code + '\n\n';
   s += 'string __j(bool v) { return v ? "true" : "false"; }\n';
   s += 'string __j(int v) { return to_string(v); }\n';
   s += 'string __j(const string& v) { return "\\"" + v + "\\""; }\n';
+  if (hasNullableInt) {
+    s += 'template<typename T>\nstring __j(const optional<T>& v) {\n  if (!v.has_value()) return "null";\n  return __j(v.value());\n}\n';
+  }
   s += 'template<typename T>\nstring __j(const vector<T>& v) {\n  if (v.empty()) return "[]";\n  stringstream ss;\n  ss << "[" << __j(v[0]);\n  for (size_t i=1;i<v.size();i++) ss << "," << __j(v[i]);\n  ss << "]";\n  return ss.str();\n}\n';
   s += 'int main() {\n  cout << "__RESULT__:";\n  cout << "[";\n';
   for (let i = 0; i < tcs.length; i++) {
@@ -3470,8 +3499,14 @@ function genCppHarness(code, fn, tcs, isClass) {
     let callArgs = '';
     for (let j = 0; j < inTypes.length; j++) {
       if (j > 0) callArgs += ', ';
-      if (inTypes[j] === 'int[]') callArgs += 'vector<int>{' + tcs[i].input[j].map(x => x === null || x === undefined ? 0 : x).join(',') + '}';
-      else if (inTypes[j] === 'int[][]') callArgs += 'vector<vector<int>>{' + tcs[i].input[j].map(row => '{' + row.join(',') + '}').join(',') + '}';
+      if (inTypes[j] === 'int[]') {
+        const vals = tcs[i].input[j];
+        if (hasNullableInt) {
+          callArgs += 'vector<optional<int>>{' + vals.map(x => x === null || x === undefined ? 'std::nullopt' : String(x)).join(',') + '}';
+        } else {
+          callArgs += 'vector<int>{' + vals.join(',') + '}';
+        }
+      } else if (inTypes[j] === 'int[][]') callArgs += 'vector<vector<int>>{' + tcs[i].input[j].map(row => '{' + row.join(',') + '}').join(',') + '}';
       else if (inTypes[j] === 'string[]') callArgs += 'vector<string>{' + tcs[i].input[j].map(x => '"' + String(x).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"').join(',') + '}';
       else if (inTypes[j] === 'string[][]') callArgs += 'vector<vector<string>>{' + tcs[i].input[j].map(row => '{' + row.map(x => '"' + String(x).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"').join(',') + '}').join(',') + '}';
       else callArgs += valToLit(tcs[i].input[j], inTypes[j]);
@@ -3480,7 +3515,13 @@ function genCppHarness(code, fn, tcs, isClass) {
     s += '    cout << "{\\"index\\":' + i + ',\\"ran\\":true,\\"passed\\":";\n';
     let compExpr = '"false"';
     if (outType === 'int[]') {
-      compExpr = '(__r == vector<int>{' + tcs[i].expected.map(x => x === null || x === undefined ? 0 : x).join(',') + '} ? "true" : "false")';
+      const exp = tcs[i].expected;
+      if (hasNullableInt) {
+        const expOpt = 'vector<optional<int>>{' + exp.map(x => x === null || x === undefined ? 'std::nullopt' : String(x)).join(',') + '}';
+        compExpr = '(__r == ' + expOpt + ' ? "true" : "false")';
+      } else {
+        compExpr = '(__r == vector<int>{' + exp.map(x => x === null || x === undefined ? 0 : x).join(',') + '} ? "true" : "false")';
+      }
     } else if (outType === 'int[][]') {
       compExpr = '(__r == vector<vector<int>>{' + tcs[i].expected.map(row => '{' + row.join(',') + '}').join(',') + '} ? "true" : "false")';
     } else if (outType === 'int') {
@@ -3551,6 +3592,7 @@ function genJavaHarness(code, fn, tcs, isClass) {
 function genCHarness(code, fn, tcs, isClass) {
   const outType = j2t(tcs[0].expected);
   const inTypes = tcs[0].input.map(v => j2t(v));
+  const hasNullableInt = inTypes.some(t => t === 'int[]') && tcs.some(tc => tc.input.some((v, i) => inTypes[i] === 'int[]' && Array.isArray(v) && v.some(x => x === null || x === undefined)));
   let s = '#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdbool.h>\n\n';
   s += code + '\n\n';
   if (outType === 'int[]') {
@@ -3571,9 +3613,13 @@ function genCHarness(code, fn, tcs, isClass) {
       if (inTypes[j] === 'int[]') {
         const arr = tcs[i].input[j];
         if (arr.length === 0) {
-          callArgs += 'NULL, 0';
+          callArgs += hasNullableInt ? 'NULL, NULL, 0' : 'NULL, 0';
+        } else if (hasNullableInt) {
+          const vals = arr.map(x => x === null || x === undefined ? 0 : x);
+          const valid = arr.map(x => x === null || x === undefined ? 0 : 1);
+          callArgs += '(int[]){' + vals.join(',') + '}, (int[]){' + valid.join(',') + '}, ' + arr.length;
         } else {
-          callArgs += '(int[]){' + arr.map(x => x).join(',') + '}, ' + arr.length;
+          callArgs += '(int[]){' + arr.join(',') + '}, ' + arr.length;
         }
       } else if (inTypes[j] === 'int[][]') {
         const arr = tcs[i].input[j];
@@ -3649,11 +3695,15 @@ function genCHarness(code, fn, tcs, isClass) {
 function genSwiftHarness(code, fn, tcs, isClass) {
   const outType = j2t(tcs[0].expected);
   const inTypes = tcs[0].input.map(v => j2t(v));
+  const hasNullableInt = inTypes.some(t => t === 'int[]') && tcs.some(tc => tc.input.some((v, i) => inTypes[i] === 'int[]' && Array.isArray(v) && v.some(x => x === null || x === undefined)));
   let s = 'import Foundation\n\n';
   s += code + '\n\n';
   s += 'func __j(_ v: Int) -> String { return String(v) }\n';
   s += 'func __j(_ v: Bool) -> String { return v ? "true" : "false" }\n';
   s += 'func __j(_ v: String) -> String { return "\\"\\(v)\\"" }\n';
+  if (hasNullableInt) {
+    s += 'func __j(_ v: [Int?]) -> String {\n  return "[" + v.map { $0.map(String.init) ?? "null" }.joined(separator: ",") + "]"\n}\n';
+  }
   if (outType === 'int[]' || outType === 'int[][]') {
     s += 'func __j(_ v: [Int]) -> String {\n  if v.isEmpty { return "[]" }\n  return "[" + v.map(String.init).joined(separator: ",") + "]"\n}\n';
   }
@@ -3667,8 +3717,13 @@ function genSwiftHarness(code, fn, tcs, isClass) {
     let callArgs = '';
     for (let j = 0; j < inTypes.length; j++) {
       if (j > 0) callArgs += ', ';
-      if (inTypes[j] === 'int[]') callArgs += '[' + tcs[i].input[j].map(x => x === null || x === undefined ? 0 : x).join(',') + '] as [Int]';
-      else if (inTypes[j] === 'int[][]') callArgs += '[' + tcs[i].input[j].map(row => '[' + row.join(',') + ']').join(',') + '] as [[Int]]';
+      if (inTypes[j] === 'int[]') {
+        if (hasNullableInt) {
+          callArgs += '[' + tcs[i].input[j].map(x => x === null || x === undefined ? 'nil' : String(x)).join(',') + '] as [Int?]';
+        } else {
+          callArgs += '[' + tcs[i].input[j].join(',') + '] as [Int]';
+        }
+      } else if (inTypes[j] === 'int[][]') callArgs += '[' + tcs[i].input[j].map(row => '[' + row.join(',') + ']').join(',') + '] as [[Int]]';
       else if (inTypes[j] === 'string[]') callArgs += '[' + tcs[i].input[j].map(x => '"' + String(x).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"').join(',') + '] as [String]';
       else if (inTypes[j] === 'string[][]') callArgs += '[' + tcs[i].input[j].map(row => '[' + row.map(x => '"' + String(x).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"').join(',') + ']').join(',') + '] as [[String]]';
       else callArgs += valToLit(tcs[i].input[j], inTypes[j]);
@@ -3713,7 +3768,6 @@ const API_BASE = (location.hostname === 'localhost' || location.hostname === '12
   : '';
 
 async function executeViaApi(lang, code, originalCode) {
-  // Make sure this points to your new secure Node.js route
   const response = await fetch(`${API_BASE}/api/execute`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -3735,10 +3789,9 @@ async function executeViaApi(lang, code, originalCode) {
     throw new Error(result.message || "Execution failed");
   }
 
-  // JDoodle returns output directly
   return { 
     stdout: result.data.output || "", 
-    stderr: "", // JDoodle merges stderr into output
+    stderr: "",
     memory: result.data.memory,
     cpuTime: result.data.cpuTime
   };
@@ -3760,6 +3813,23 @@ function parseTestResults(stdout, testCount) {
   return { allPassed: false, testResults: Array(testCount).fill({ ran: false, passed: false, error: "No test result marker found" }), rawOutput: stdout };
 }
 
+function executeJS(code) {
+  const logs = [];
+  const origLog = console.log;
+  console.log = function(...args) {
+    logs.push(args.map(String).join(" "));
+  };
+  try {
+    const result = (0, eval)(code);
+    if (result !== undefined) logs.push(String(result));
+    return { success: true, stdout: logs.join("\n") };
+  } catch (e) {
+    return { success: false, stdout: logs.join("\n"), error: e.message };
+  } finally {
+    console.log = origLog;
+  }
+}
+
 async function executeCode(code, lang, problem) {
   const testCases = generateTestCases(problem);
   if (!testCases || testCases.length === 0) {
@@ -3772,30 +3842,29 @@ async function executeCode(code, lang, problem) {
   let stdout = "", stderr = "", memory = "", cpuTime = "";
   
   try {
-    const result = await executeViaApi(lang, harnessCode, code);
-    stdout = result.stdout;
-    memory = result.memory;
-    cpuTime = result.cpuTime;
-  } catch (e) {
-    if (lang === "javascript" && isAiInterviewerActive) {
-      try {
-        const { executeSandboxedCode } = await import('./modules/code-executor.js');
-        const logs = await executeSandboxedCode(harnessCode, 5000);
-        stdout = logs.join("\n");
-      } catch (sandboxErr) {
+    if (lang === "javascript") {
+      const jsResult = executeJS(harnessCode);
+      if (jsResult.success) {
+        stdout = jsResult.stdout;
+      } else {
         return { 
           allPassed: false, 
-          testResults: testCases.map(() => ({ ran: false, passed: false, error: sandboxErr.message })), 
-          rawOutput: sandboxErr.message 
+          testResults: testCases.map(() => ({ ran: false, passed: false, error: jsResult.error })), 
+          rawOutput: jsResult.stdout + "\n" + jsResult.error 
         };
       }
     } else {
-      return { 
-        allPassed: false, 
-        testResults: testCases.map(() => ({ ran: false, passed: false, error: e.message })), 
-        rawOutput: e.message 
-      };
+      const result = await executeViaApi(lang, harnessCode, code);
+      stdout = result.stdout;
+      memory = result.memory;
+      cpuTime = result.cpuTime;
     }
+  } catch (e) {
+    return { 
+      allPassed: false, 
+      testResults: testCases.map(() => ({ ran: false, passed: false, error: e.message })), 
+      rawOutput: e.message 
+    };
   }
   
   const parsedResults = parseTestResults(stdout, testCases.length);
@@ -4067,6 +4136,22 @@ function toggleOutputPanel() {
   panel.classList.toggle('collapsed');
   if (icon) { if (panel.classList.contains('collapsed')) { icon.classList.remove('fa-chevron-down'); icon.classList.add('fa-chevron-up'); } else { icon.classList.remove('fa-chevron-up'); icon.classList.add('fa-chevron-down'); } }
 }
+
+(function bindOutputToggle() {
+  function bind() {
+    const header = document.getElementById('outputHeader');
+    if (header && !header._bound) {
+      header.addEventListener('click', toggleOutputPanel);
+      header._bound = true;
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bind);
+  } else {
+    bind();
+  }
+  new MutationObserver(bind).observe(document.body, { childList: true, subtree: true });
+})();
 
 // ============================================
 // CODING PERSONALITY
