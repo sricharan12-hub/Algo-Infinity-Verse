@@ -1,9 +1,11 @@
 import crypto from "crypto";
 import fs from "fs/promises";
 import http from "http";
+import { execFile } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
 import { initializeFirebase, getDb, COLLECTIONS } from "./firebase.js";
+import { verifyCsrfToken } from "./utils/csrf-verify.js";
 import multer from "multer";
 import { extractResumeText } from "./backend/resume-analyzer/parser.js";
 import { calculateATS } from "./backend/resume-analyzer/atsScore.js";
@@ -11,18 +13,35 @@ import { findMissingSkills } from "./backend/resume-analyzer/skills.js";
 import { getSuggestions } from "./backend/resume-analyzer/suggestions.js";
 import { analyzeWorkflow } from "./backend/repository-analyzer/cicdValidator.js";
 import { VCSFactory } from "./backend/vcs/VCSFactory.js";
-import { enqueueBulkAudit, getBatchProgress } from "./backend/jobs/queue.js";
+import { enqueueBulkAudit, getBatchProgress, MAX_BULK_AUDIT_URLS } from "./backend/jobs/queue.js";
 import "./backend/jobs/worker.js"; // Initialize worker
 
 import { parse as csvParse } from "csv-parse/sync";
 import { v4 as uuidv4 } from "uuid";
 import { generateSdlcAdvice } from "./sdlcAdvisor.js";
+
+const JUDGE0_LANGUAGE_IDS = {
+  python:      71,
+  javascript:  63,
+  java:        62,
+  'c++':       54,
+  cpp:         54,
+  c:           50,
+  typescript:  74,
+  go:          60,
+  rust:        73,
+  ruby:        72,
+  swift:       83,
+  dart:        98,
+  haskell:     89,
+  kotlin:      78,
+};
 import { handleReportRequest } from "./backend/reports/reportGenerator.js";
 import { getUserBenchmark } from "./backend/benchmarking/percentileService.js";
 import { Server as SocketIOServer } from "socket.io";
-import { 
-  ACCESS_TOKEN_MAX_AGE_SECONDS, getClientIdentifier, isSignupRateLimited, 
-  recordSignupAttempt, normalizeAuthDelay, createAccessToken, 
+import {
+  ACCESS_TOKEN_MAX_AGE_SECONDS, REFRESH_TOKEN_MAX_AGE_SECONDS, getClientIdentifier, isSignupRateLimited,
+  recordSignupAttempt, normalizeAuthDelay, createAccessToken,
   verifyAccessToken, hashPassword, passwordMatches, validateSignup,
   createRefreshToken, verifyRefreshToken, revokeTokenFamily,
   activeRefreshFamilies
@@ -35,7 +54,11 @@ import {
   changePasswordLimiter,
   deleteAccountLimiter,
   resendVerificationLimiter,
-  logErrorLimiter
+  resumeAnalysisLimiter,
+  repoAnalysisLimiter,
+  sdlcAdvisorLimiter,
+  predictionLimiter,
+  bulkAuditLimiter
 } from "./backend/utils/rateLimiter.js";
 import { applySM2 } from "./backend/services/memory.service.js";
 import { sendVerificationEmail } from "./backend/services/email.service.js";
@@ -46,6 +69,8 @@ import {
   getBattle,
   getHistory,
 } from "./pages/Dsa-Battle/Battleservice.js";
+
+import { instrumentJS } from "./modules/code-tracer.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -81,17 +106,7 @@ const USERS_FILE = path.join(DATA_DIR, "users.json");
 const MEMORY_FILE = path.join(DATA_DIR, "memory.json");
 const TEAM_PROFILES_FILE = path.join(DATA_DIR, "team_profiles.json");
 const AUDITS_FILE = path.join(DATA_DIR, "audits_history.json");
-const CLIENT_ERRORS_FILE = path.join(DATA_DIR, "client_errors.json");
-const FEEDBACK_FILE = path.join(DATA_DIR, "feedback.json");
-const INTERVIEW_EXPERIENCES_FILE = path.join(DATA_DIR, "interview-experiences.json");
-
-// Max entries retained per append-only JSON store. Oldest entries are dropped
-// once the cap is reached, so these files cannot grow without bound (disk-fill).
-const MAX_CLIENT_ERROR_ENTRIES = 2000;
-const MAX_FEEDBACK_ENTRIES = 10000;
-const MAX_INTERVIEW_EXPERIENCE_ENTRIES = 10000;
-const MAX_AUDIT_HISTORY_ENTRIES = 10000;
-
+const EXECUTIONS_FILE = path.join(DATA_DIR, "executions.json");
 const SESSION_COOKIE = "aiv_session";
 const ACCESS_COOKIE = "aiv_access";
 const REFRESH_COOKIE = "aiv_refresh";
@@ -168,22 +183,36 @@ function getRefreshToken(req) {
   return cookies[REFRESH_COOKIE] || null;
 }
 
-function authCookies(token, req) {
+// Builds the Set-Cookie header value(s) for an authenticated response. Returns
+// an array of two cookies: the short-lived access token (read by getSession)
+// and the long-lived refresh token (read by getRefreshToken on /api/refresh).
+// Previously this set only the access cookie, so the aiv_refresh cookie was
+// never issued and silent token refresh could never succeed (#1225).
+function authCookies(accessToken, refreshToken, req) {
   const secure = req.headers["x-forwarded-proto"] === "https";
+  const cookie = (name, value, maxAge) =>
+    [
+      `${name}=${encodeURIComponent(value)}`,
+      "HttpOnly",
+      "SameSite=Lax",
+      "Path=/",
+      `Max-Age=${maxAge}`,
+      secure ? "Secure" : "",
+    ]
+      .filter(Boolean)
+      .join("; ");
+
   return [
-    `${SESSION_COOKIE}=${encodeURIComponent(token)}`,
-    "HttpOnly",
-    "SameSite=Lax",
-    "Path=/",
-    `Max-Age=${ACCESS_TOKEN_MAX_AGE_SECONDS}`,
-    secure ? "Secure" : "",
-  ]
-    .filter(Boolean)
-    .join("; ");
+    cookie(SESSION_COOKIE, accessToken, ACCESS_TOKEN_MAX_AGE_SECONDS),
+    cookie(REFRESH_COOKIE, refreshToken, REFRESH_TOKEN_MAX_AGE_SECONDS),
+  ];
 }
 
 function clearAuthCookies() {
-  return `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+  return [
+    `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
+    `${REFRESH_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
+  ];
 }
 
 let db = null;
@@ -247,6 +276,51 @@ async function readAudits() {
   await ensureAuditsStore();
   const raw = await fs.readFile(AUDITS_FILE, "utf8");
   return JSON.parse(raw || "[]");
+}
+
+async function writeAudits(audits) {
+  await ensureAuditsStore();
+  await fs.writeFile(AUDITS_FILE, `${JSON.stringify(audits, null, 2)}\n`);
+}
+
+// ── Execution History Store ─────────────────────────────────────────────────
+
+let executionWriteQueue = Promise.resolve();
+
+async function ensureExecutionStore() {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  try {
+    await fs.access(EXECUTIONS_FILE);
+  } catch {
+    await fs.writeFile(EXECUTIONS_FILE, "[]\n");
+  }
+}
+
+async function readExecutions() {
+  await ensureExecutionStore();
+  const raw = await fs.readFile(EXECUTIONS_FILE, "utf8");
+  return JSON.parse(raw || "[]");
+}
+
+async function writeExecutionsAtomic(executions) {
+  const tmpPath = `${EXECUTIONS_FILE}.${process.pid}.${Date.now()}.tmp`;
+  await fs.writeFile(tmpPath, `${JSON.stringify(executions, null, 2)}\n`);
+  await fs.rename(tmpPath, EXECUTIONS_FILE);
+}
+
+async function updateExecutionStore(mutator) {
+  const task = executionWriteQueue.then(async () => {
+    await ensureExecutionStore();
+    const raw = await fs.readFile(EXECUTIONS_FILE, "utf8");
+    const store = JSON.parse(raw || "[]");
+    const result = await mutator(store);
+    await writeExecutionsAtomic(store);
+    return result;
+  });
+  executionWriteQueue = task.catch((err) => {
+    console.error("[updateExecutionStore] Write task failed:", err);
+  });
+  return task;
 }
 
 // ── Memory Scanner (Spaced Repetition, SM-2) ─────────────────────────────────
@@ -410,6 +484,22 @@ function getSession(req) {
   return verifyAccessToken(cookies[SESSION_COOKIE]);
 }
 
+// A team profile is private to its owner — the authenticated user who first
+// created it — and any explicitly listed members. Profiles with no recorded
+// owner are treated as unclaimed legacy data: still readable, and claimed by
+// the first authenticated user who writes them. This closes the IDOR where any
+// client could read/overwrite any profile just by knowing its id.
+function canAccessTeamProfile(profile, userId) {
+  if (!profile || !profile.ownerId) return true;
+  if (profile.ownerId === userId) return true;
+  const members = Array.isArray(profile.members) ? profile.members : [];
+  return members.some(
+    (m) =>
+      m === userId ||
+      (m && typeof m === "object" && (m.id === userId || m.userId === userId)),
+  );
+}
+
 function normalizePathname(pathname) {
   if (!pathname) return "/";
   return pathname.replace(/\/+$/, "") || "/";
@@ -440,7 +530,7 @@ function authorizeRequest(req, pathname) {
 }
 
 function validateRequest(req) {
-  const allowedMethods = ["GET", "POST"];
+  const allowedMethods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
   if (!allowedMethods.includes(req.method)) {
     return {
       valid: false,
@@ -452,7 +542,42 @@ function validateRequest(req) {
   return { valid: true };
 }
 
+// ── CSRF protection ──────────────────────────────────────────────────────────
+// Previously a CSRF token was issued by /api/csrf-token but never checked, so
+// every state-changing request was unprotected. A mutating request is now
+// accepted only when it proves it originated from our own site, via EITHER:
+//   1. a valid double-submit token — the x-csrf-token header equals
+//      HMAC(csrfSecret cookie), compared with crypto.timingSafeEqual
+//      (see verifyCsrfToken); OR
+//   2. an Origin/Referer header whose host matches our own — a value a
+//      cross-site attacker's page cannot set on a forged request.
+// A forged cross-site request carries neither and is rejected with 403.
+const CSRF_SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function isSameOriginRequest(req) {
+  const host = req.headers.host;
+  if (!host) return false;
+  for (const header of [req.headers.origin, req.headers.referer]) {
+    if (!header) continue;
+    try {
+      if (new URL(header).host === host) return true;
+    } catch {
+      // Malformed Origin/Referer header — treat as untrusted.
+    }
+  }
+  return false;
+}
+
+function isCsrfRequestTrusted(req) {
+  return verifyCsrfToken(req) || isSameOriginRequest(req);
+}
+
 async function handleApi(req, res, pathname) {
+  // Reject state-changing requests that cannot prove a same-site origin.
+  if (!CSRF_SAFE_METHODS.has(req.method) && !isCsrfRequestTrusted(req)) {
+    return sendJson(res, 403, { error: "CSRF validation failed." });
+  }
+
   if (pathname === "/api/csrf-token" && req.method === "GET") {
     const secret = crypto.randomBytes(32).toString("hex");
     const token = crypto.createHmac("sha256", process.env.CSRF_SALT || "infinity-verse-secure-salt")
@@ -500,6 +625,7 @@ async function handleApi(req, res, pathname) {
         });
       }
       const sourceCode = payload.sourceCode ?? payload.source_code;
+      const originalCode = payload.originalCode;
       const { language, stdin } = payload;
 
       if (
@@ -515,51 +641,102 @@ async function handleApi(req, res, pathname) {
         return sendJson(res, 400, { success: false, message: 'Source code and language are required.' });
       }
 
-      const languageMap = {
-        'javascript': { lang: 'nodejs', version: '4' },
-        'python': { lang: 'python3', version: '3' },
-        'cpp': { lang: 'cpp17', version: '0' },
-        'java': { lang: 'java', version: '4' }
-      };
 
-      const targetLang = languageMap[language.toLowerCase()];
 
-      if (!targetLang) {
+      const languageId = JUDGE0_LANGUAGE_IDS[language.toLowerCase()];
+
+      if (!languageId) {
          return sendJson(res, 400, { success: false, message: 'Unsupported language.' });
       }
 
-      // JDoodle API call
-      const response = await fetch('https://api.jdoodle.com/v1/execute', {
+      const JUDGE0_API = 'https://ce.judge0.com';
+      const b64 = (s) => Buffer.from(s, 'utf-8').toString('base64');
+      const d64 = (s) => s ? Buffer.from(s, 'base64').toString('utf-8') : '';
+
+      const executionId = uuidv4();
+      const startedAt = new Date().toISOString();
+
+      let stdout = "", stderr = "", exitCode = 0, cpuTime = null, memory = null, execError = null;
+
+      try {
+        const submitRes = await fetch(`${JUDGE0_API}/submissions?base64_encoded=true&wait=false`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-              clientId: process.env.JDOODLE_CLIENT_ID,
-              clientSecret: process.env.JDOODLE_CLIENT_SECRET,
-              script: sourceCode,
-              language: targetLang.lang,
-              versionIndex: targetLang.version,
-              stdin: stdin || ""
+            source_code: b64(sourceCode),
+            language_id: languageId,
+            stdin: b64(stdin || ""),
+            compiler_options: languageId === 54 ? '-std=c++17' : undefined,
           })
-      });
+        });
 
-      const data = await response.json();
+        if (!submitRes.ok) {
+          const errText = await submitRes.text();
+          throw new Error(`Judge0 submission error: ${errText}`);
+        }
 
-      if (!response.ok || data.error) {
-          console.error("JDoodle API Error:", data);
-          return sendJson(res, 500, { 
-              success: false, 
-              message: 'Compiler API error', 
-              details: data 
-          });
+        const { token } = await submitRes.json();
+        if (!token) throw new Error('No submission token received from Judge0');
+
+        let result;
+        for (let i = 0; i < 50; i++) {
+          await new Promise(r => setTimeout(r, 600));
+          const pollRes = await fetch(`${JUDGE0_API}/submissions/${encodeURIComponent(token)}?base64_encoded=true`);
+          if (!pollRes.ok) throw new Error(`Judge0 poll error: ${await pollRes.text()}`);
+          result = await pollRes.json();
+          if (result.status && result.status.id >= 3) break;
+        }
+
+        if (!result || (result.status && result.status.id < 3)) {
+          throw new Error('Judge0 execution timed out');
+        }
+
+        stdout = d64(result.stdout);
+        stderr = d64(result.stderr) || d64(result.compile_output) || '';
+        exitCode = result.status?.id === 3 ? 0 : 1;
+        cpuTime = result.time ?? null;
+        memory = result.memory ?? null;
+      } catch (fetchErr) {
+        execError = fetchErr.message;
       }
 
-     
+      const execution = {
+        id: executionId,
+        userId: session.sub,
+        sourceCode,
+        originalCode,
+        language,
+        stdin: stdin || "",
+        stdout,
+        stderr,
+        exitCode: execError ? 1 : exitCode,
+        cpuTime,
+        memory,
+        error: execError,
+        createdAt: startedAt,
+        variableSnapshots: []
+      };
+
+      await updateExecutionStore((store) => {
+        store.push(execution);
+      });
+
+      if (execError) {
+        return sendJson(res, 500, {
+            success: false,
+            message: execError,
+            executionId
+        });
+      }
+
       return sendJson(res, 200, {
           success: true,
+          executionId,
           data: {
-              output: data.output,
-              memory: data.memory,
-              cpuTime: data.cpuTime
+              output: stdout,
+              stderr,
+              memory,
+              cpuTime
           }
       });
     } catch (error) {
@@ -568,11 +745,126 @@ async function handleApi(req, res, pathname) {
     }
   }
 
+  // ── Traced Execution (JS only, server-side child process with variable snapshots) ──
+
+  if (pathname === "/api/execute/traced" && req.method === "POST") {
+    try {
+      const session = getSession(req);
+      if (!session) {
+        return sendJson(res, 401, { success: false, message: "Authentication required." });
+      }
+
+      const payload = await readJsonBody(req);
+      const sourceCode = payload.sourceCode ?? payload.source_code;
+      const originalCode = payload.originalCode;
+      const stdin = payload.stdin ?? "";
+
+      if (!sourceCode || typeof sourceCode !== "string") {
+        return sendJson(res, 400, { success: false, message: "Source code is required." });
+      }
+
+      const { instrumented, variableNames, error: instrumentError } = instrumentJS(sourceCode);
+      if (instrumentError) {
+        return sendJson(res, 400, { success: false, message: instrumentError });
+      }
+
+      const tmpFile = path.join(DATA_DIR, `__trace_${crypto.randomUUID()}.mjs`);
+      let snapshots = [];
+      let userOutput = "";
+      let traceError = null;
+
+      try {
+        await fs.writeFile(tmpFile, instrumented, "utf8");
+        await new Promise((resolve, reject) => {
+          // Sandbox the user-submitted code: instrumentJS does NOT isolate it,
+          // so run it under Node's Permission Model (--permission denies fs,
+          // child_process, worker_threads and native addons) with an empty
+          // environment so the child cannot read server secrets (SESSION_SECRET,
+          // Firebase keys, etc.). process.execPath is used directly so the
+          // binary resolves without a PATH in the stripped env. This blocks the
+          // RCE / secret-exfiltration path while still allowing console output
+          // and the snapshot JSON written to stdout.
+          execFile(process.execPath, ["--permission", tmpFile], {
+            timeout: 10000,
+            maxBuffer: 1024 * 1024,
+            env: {},
+          }, (err, stdout, stderr) => {
+            if (stdout) {
+              try {
+                const parsed = JSON.parse(stdout);
+                if (parsed.snapshots && Array.isArray(parsed.snapshots)) {
+                  snapshots = parsed.snapshots;
+                  userOutput = (parsed.output || []).join("\n");
+                } else {
+                  userOutput = stdout;
+                }
+              } catch {
+                userOutput = stdout;
+              }
+            }
+
+            if (err) {
+              if (snapshots.length === 0) {
+                reject(new Error(stderr || err.message));
+              } else {
+                resolve();
+              }
+            } else {
+              resolve();
+            }
+          });
+        });
+      } catch (execError) {
+        traceError = execError.message;
+        userOutput = `Execution error: ${traceError}`;
+      } finally {
+        await fs.unlink(tmpFile).catch(() => {});
+      }
+      const executionId = uuidv4();
+      const execution = {
+        id: executionId,
+        userId: session.sub,
+        sourceCode,
+        originalCode,
+        language: "javascript",
+        stdin,
+        stdout: userOutput,
+        stderr: traceError || "",
+        exitCode: traceError ? 1 : 0,
+        cpuTime: null,
+        memory: null,
+        error: traceError,
+        createdAt: new Date().toISOString(),
+        variableSnapshots: snapshots,
+        traced: true,
+      };
+
+      await updateExecutionStore((store) => {
+        store.push(execution);
+      });
+
+      return sendJson(res, 200, {
+        success: !traceError,
+        executionId,
+        data: { output: userOutput },
+        snapshots,
+      });
+    } catch (error) {
+      console.error("Traced Execution Error:", error);
+      return sendJson(res, 500, { success: false, message: "Traced execution failed." });
+    }
+  }
+
   if (pathname === "/api/team-profile" && req.method === "GET") {
     try {
+      const session = getSession(req);
+      if (!session) {
+        return sendJson(res, 401, { error: "Login required." });
+      }
+
       const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
       const teamId = urlParams.get("id");
-      
+
       if (!teamId) {
         return sendJson(res, 400, { error: "Missing team id." });
       }
@@ -588,6 +880,10 @@ async function handleApi(req, res, pathname) {
         if (snapshot.exists) {
           profileData = snapshot.data();
         }
+      }
+
+      if (profileData && !canAccessTeamProfile(profileData, session.sub)) {
+        return sendJson(res, 403, { error: "You do not have access to this team profile." });
       }
 
       if (!profileData) {
@@ -610,6 +906,11 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === "/api/team-profile" && req.method === "POST") {
     try {
+      const session = getSession(req);
+      if (!session) {
+        return sendJson(res, 401, { error: "Login required." });
+      }
+
       const payload = await readJsonBody(req);
       const { id: teamId, version, name, description, members } = payload;
 
@@ -627,7 +928,14 @@ async function handleApi(req, res, pathname) {
         try {
           updatedProfile = await updateTeamProfilesStore(store => {
             const currentProfile = store[teamId] || { version: 1 };
-            
+
+            // Ownership check: only the owner/members may modify a claimed profile.
+            if (!canAccessTeamProfile(currentProfile, session.sub)) {
+              const forbiddenError = new Error("Forbidden");
+              forbiddenError.status = 403;
+              throw forbiddenError;
+            }
+
             // OCC version check
             if (currentProfile.version !== version) {
               const conflictError = new Error("Conflict");
@@ -639,6 +947,7 @@ async function handleApi(req, res, pathname) {
             // Update data and increment version
             const newProfile = {
               id: teamId,
+              ownerId: currentProfile.ownerId || session.sub,
               name: name || currentProfile.name || "New Team Profile",
               description: description !== undefined ? description : (currentProfile.description || ""),
               members: members || currentProfile.members || [],
@@ -650,8 +959,11 @@ async function handleApi(req, res, pathname) {
             return newProfile;
           });
         } catch (error) {
+          if (error.status === 403) {
+            return sendJson(res, 403, { error: "You do not have access to this team profile." });
+          }
           if (error.status === 409) {
-            return sendJson(res, 409, { 
+            return sendJson(res, 409, {
               error: "Conflict detected: The profile was updated by someone else.",
               currentVersion: error.currentVersion
             });
@@ -663,8 +975,16 @@ async function handleApi(req, res, pathname) {
         try {
           updatedProfile = await db.runTransaction(async (transaction) => {
             const doc = await transaction.get(docRef);
-            
-            const currentVersion = doc.exists ? doc.data().version : 1;
+            const existing = doc.exists ? doc.data() : null;
+
+            // Ownership check: only the owner/members may modify a claimed profile.
+            if (!canAccessTeamProfile(existing, session.sub)) {
+              const forbiddenError = new Error("Forbidden");
+              forbiddenError.status = 403;
+              throw forbiddenError;
+            }
+
+            const currentVersion = existing ? existing.version : 1;
 
             if (currentVersion !== version) {
               const conflictError = new Error("Conflict");
@@ -675,9 +995,10 @@ async function handleApi(req, res, pathname) {
 
             const newProfile = {
               id: teamId,
-              name: name || (doc.exists ? doc.data().name : "New Team Profile"),
-              description: description !== undefined ? description : (doc.exists ? doc.data().description : ""),
-              members: members || (doc.exists ? doc.data().members : []),
+              ownerId: (existing && existing.ownerId) || session.sub,
+              name: name || (existing ? existing.name : "New Team Profile"),
+              description: description !== undefined ? description : (existing ? existing.description : ""),
+              members: members || (existing ? existing.members : []),
               version: version + 1,
               updatedAt: new Date().toISOString()
             };
@@ -686,8 +1007,11 @@ async function handleApi(req, res, pathname) {
             return newProfile;
           });
         } catch (error) {
+          if (error.status === 403) {
+            return sendJson(res, 403, { error: "You do not have access to this team profile." });
+          }
           if (error.status === 409) {
-            return sendJson(res, 409, { 
+            return sendJson(res, 409, {
               error: "Conflict detected: The profile was updated by someone else.",
               currentVersion: error.currentVersion
             });
@@ -706,13 +1030,13 @@ async function handleApi(req, res, pathname) {
   if (
     pathname === "/api/debug-env" &&
     req.method === "GET" &&
-    process.env.NODE_ENV !== "production"
+    process.env.ENABLE_DEBUG_ENV === "true"
   ) {
     const keys = ["FIREBASE_API_KEY","FIREBASE_AUTH_DOMAIN","FIREBASE_PROJECT_ID","FIREBASE_STORAGE_BUCKET","FIREBASE_MESSAGING_SENDER_ID","FIREBASE_APP_ID","FIREBASE_CLIENT_EMAIL","FIREBASE_PRIVATE_KEY","SESSION_SECRET"];
     const vars = {};
     keys.forEach(k => {
       const v = process.env[k];
-      vars[k] = v ? v.slice(0, 6) + "..." + v.slice(-4) : "(not set)";
+      vars[k] = Boolean(process.env[k]);
     });
     return sendJson(res, 200, vars);
   }
@@ -740,6 +1064,9 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === "/api/analyze-resume" && req.method === "POST") {
+    if (!applyRateLimit(req, res, resumeAnalysisLimiter, "Too many resume analysis requests. Please try again later.")) {
+      return;
+    }
     try {
       await new Promise((resolve, reject) => {
         upload(req, res, (err) => {
@@ -788,6 +1115,9 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === "/api/analyze-repository" && req.method === "POST") {
+    if (!applyRateLimit(req, res, repoAnalysisLimiter, "Too many repository analysis requests. Please try again later.")) {
+      return;
+    }
     try {
       const payload = await readJsonBody(req);
       const { repoUrl } = payload;
@@ -843,6 +1173,9 @@ async function handleApi(req, res, pathname) {
 
   // SDLC Advisor API
   if (pathname === "/api/sdlc-advisor" && req.method === "POST") {
+    if (!applyRateLimit(req, res, sdlcAdvisorLimiter, "Too many SDLC advisor requests. Please try again later.")) {
+      return;
+    }
     try {
       const payload = await readJsonBody(req);
       const { description } = payload;
@@ -859,18 +1192,31 @@ async function handleApi(req, res, pathname) {
 
   // Bulk Audit APIs
   if (pathname === "/api/audit/bulk" && req.method === "POST") {
+    if (!applyRateLimit(req, res, bulkAuditLimiter, "Too many bulk audit requests. Please try again later.")) {
+      return;
+    }
     try {
       uploadCsv(req, res, async (err) => {
         if (err) return sendJson(res, 500, { error: "Upload error." });
         if (!req.file) return sendJson(res, 400, { error: "No CSV file uploaded." });
-        
+
         try {
           const records = csvParse(req.file.buffer.toString('utf-8'), { columns: false, skip_empty_lines: true });
           // Extract repo URLs from the first column
           const repoUrls = records.map(row => row[0]).filter(url => url && url.includes("github.com"));
-          
+
           if (repoUrls.length === 0) {
             return sendJson(res, 400, { error: "No valid GitHub URLs found in the CSV." });
+          }
+
+          // Cap batch size: each URL fans out to outbound GitHub requests, so an
+          // unbounded CSV is a denial-of-service / cost-amplification vector.
+          if (repoUrls.length > MAX_BULK_AUDIT_URLS) {
+            return sendJson(res, 400, {
+              error: `Too many repositories. A maximum of ${MAX_BULK_AUDIT_URLS} is allowed per bulk audit.`,
+              maxAllowed: MAX_BULK_AUDIT_URLS,
+              received: repoUrls.length,
+            });
           }
 
           const batchId = uuidv4();
@@ -997,11 +1343,12 @@ if (pathname === "/api/session" && req.method === "GET") {
       await createUser(user);
 
       const token = createAccessToken(user);
+      const refreshToken = createRefreshToken(user);
       loginLimiter.reset(getClientIdentifier(req));
       return sendJson(
         res, 200,
         { user: { id: user.id, name: user.name, email: user.email } },
-        { "Set-Cookie": authCookies(token, req) },
+        { "Set-Cookie": authCookies(token, refreshToken, req) },
       );
     } catch (error) {
       console.error("[signup] Unexpected error:", error);
@@ -1019,7 +1366,8 @@ if (pathname === "/api/session" && req.method === "GET") {
       const password = String(payload.password || "");
       const user = await getUserByEmail(email);
       if (!user || !user.password || !passwordMatches(password, user.password)) {
-        return sendJson(res, 401, { error: "Invalid email or password." });
+       console.warn(`[LOGIN FAILED] ${email}`);
+      return sendJson(res, 401, { error: "Invalid email or password." });
       }
 
       if (!user.emailVerified) {
@@ -1049,11 +1397,12 @@ if (pathname === "/api/session" && req.method === "GET") {
       }
 
       const token = createAccessToken(user);
+      const refreshToken = createRefreshToken(user);
       loginLimiter.reset(getClientIdentifier(req));
       return sendJson(
         res, 200,
         { user: { id: user.id, name: user.name, email: user.email } },
-        { "Set-Cookie": authCookies(token, req) },
+        { "Set-Cookie": authCookies(token, refreshToken, req) },
       );
     } catch (error) {
       console.error("[login] Unexpected error:", error);
@@ -1075,37 +1424,33 @@ if (pathname === "/api/session" && req.method === "GET") {
 
       let decoded;
       try {
-        const apiKey = process.env.FIREBASE_API_KEY;
-        if (!apiKey) throw new Error("FIREBASE_API_KEY not configured");
-
-        const tokenResponse = await fetch(
-          `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(apiKey)}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idToken }),
-          }
-        );
-
-        if (!tokenResponse.ok) {
-          const errText = await tokenResponse.text();
-          throw new Error(`Lookup failed: ${tokenResponse.status} ${errText}`);
-        }
-
-        const tokenData = await tokenResponse.json();
-        if (!tokenData.users || tokenData.users.length === 0) throw new Error("No user found for token");
-
-        const u = tokenData.users[0];
+        // Cryptographically verify the Google ID token with the Firebase Admin
+        // SDK. verifyIdToken checks the RS256 signature against Google's public
+        // keys and validates the aud (project id), iss
+        // (securetoken.google.com/<project>) and exp claims — far stronger than
+        // the previous Identity Toolkit REST lookup with the public API key.
+        const { getAuth } = await import("firebase-admin/auth");
+        const decodedToken = await getAuth().verifyIdToken(idToken);
         decoded = {
-          uid: u.localId,
-          email: u.email,
-          name: u.displayName || u.email,
-          picture: u.photoUrl || null,
-          emailVerified: u.emailVerified === true,
+          uid: decodedToken.uid,
+          email: decodedToken.email,
+          name: decodedToken.name || decodedToken.email,
+          picture: decodedToken.picture || null,
+          emailVerified: decodedToken.email_verified === true,
         };
       } catch (verifyError) {
         console.error("Token verification failed:", verifyError.message);
         return sendJson(res, 401, { error: "Invalid token" });
+      }
+
+      // Enforce a Google-verified email. Only an email Google itself has
+      // verified is trusted, which is what makes the email-based account
+      // matching below safe from takeover.
+      if (!decoded.email) {
+        return sendJson(res, 400, { error: "Google token has no email." });
+      }
+      if (!decoded.emailVerified) {
+        return sendJson(res, 403, { error: "Google account email is not verified." });
       }
 
       const { uid, email, name, picture } = decoded;
@@ -1130,7 +1475,18 @@ if (pathname === "/api/session" && req.method === "GET") {
           .limit(1)
           .get();
         if (!emailSnapshot.empty) {
-          user = { ...emailSnapshot.docs[0].data(), id: emailSnapshot.docs[0].id };
+          const existing = { ...emailSnapshot.docs[0].data(), id: emailSnapshot.docs[0].id };
+          // Only link to an account that is itself Google-provisioned. Silently
+          // merging a Google login into a password account would let anyone with
+          // a matching Google address take it over (local signups are not
+          // email-verified), so require the user to sign in with their password.
+          const isGoogleAccount = existing.authProvider === "google" || !!existing.firebaseUid;
+          if (!isGoogleAccount) {
+            return sendJson(res, 409, {
+              error: "An account with this email already exists. Please sign in with your password.",
+            });
+          }
+          user = existing;
         }
       }
 
@@ -1157,7 +1513,8 @@ if (pathname === "/api/session" && req.method === "GET") {
       }
 
       const token = createAccessToken(user);
-      const cookie = authCookies(token, req);
+      const refreshToken = createRefreshToken(user);
+      const cookie = authCookies(token, refreshToken, req);
 
       return sendJson(res, 200, {
         authenticated: true,
@@ -1929,6 +2286,132 @@ if (pathname === "/api/forgot-password" && req.method === "POST") {
     }
   }
 
+  // ── Problem Notes & Mnemonics endpoints ──────────────────────────────────
+  if (pathname === "/api/problem-notes" && req.method === "GET") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    try {
+      if (useFirestore) {
+        const snap = await db.collection("users").doc(session.sub).collection("problemNotes").get();
+        const notes = {};
+        snap.forEach(doc => {
+          notes[doc.id] = doc.data();
+        });
+        return sendJson(res, 200, { success: true, notes });
+      } else {
+        const users = await readUsers();
+        const user = users.find(u => u.id === session.sub);
+        return sendJson(res, 200, { success: true, notes: user?.problemNotes || {} });
+      }
+    } catch (err) {
+      console.error("Error fetching notes:", err);
+      return sendJson(res, 500, { error: "Failed to fetch notes." });
+    }
+  }
+
+  const notesMatch = pathname.match(/^\/api\/problem-notes\/([^/]+)$/);
+  if (notesMatch && req.method === "PUT") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    const problemId = notesMatch[1];
+    let payload;
+    try { payload = await readJsonBody(req); } catch { return sendJson(res, 400, { error: "Invalid JSON." }); }
+
+    const noteData = {
+      topicKey: String(payload.topicKey || ""),
+      problemId: parseInt(problemId) || 0,
+      notes: String(payload.notes || ""),
+      mnemonics: String(payload.mnemonics || ""),
+      pitfalls: String(payload.pitfalls || ""),
+      whenToUse: String(payload.whenToUse || ""),
+      tags: Array.isArray(payload.tags) ? payload.tags : [],
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      if (useFirestore) {
+        await db.collection("users").doc(session.sub).collection("problemNotes").doc(String(problemId)).set(noteData);
+      } else {
+        const users = await readUsers();
+        const idx = users.findIndex(u => u.id === session.sub);
+        if (idx !== -1) {
+          if (!users[idx].problemNotes) users[idx].problemNotes = {};
+          users[idx].problemNotes[problemId] = noteData;
+          await writeUsers(users);
+        }
+      }
+      return sendJson(res, 200, { success: true, note: noteData });
+    } catch (err) {
+      console.error("Error saving note:", err);
+      return sendJson(res, 500, { error: "Failed to save note." });
+    }
+  }
+
+  // ── Spaced Repetition Practice Problems endpoints ─────────────────────────
+  if (pathname === "/api/spaced-repetition" && req.method === "GET") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    try {
+      if (useFirestore) {
+        const snap = await db.collection("users").doc(session.sub).collection("spacedRepetition").get();
+        const cards = {};
+        snap.forEach(doc => {
+          cards[doc.id] = doc.data();
+        });
+        return sendJson(res, 200, { success: true, cards });
+      } else {
+        const users = await readUsers();
+        const user = users.find(u => u.id === session.sub);
+        return sendJson(res, 200, { success: true, cards: user?.spacedRepetition || {} });
+      }
+    } catch (err) {
+      console.error("Error fetching spaced repetition cards:", err);
+      return sendJson(res, 500, { error: "Failed to fetch spaced repetition cards." });
+    }
+  }
+
+  const repMatch = pathname.match(/^\/api\/spaced-repetition\/([^/]+)$/);
+  if (repMatch && req.method === "PUT") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    const problemId = repMatch[1];
+    let payload;
+    try { payload = await readJsonBody(req); } catch { return sendJson(res, 400, { error: "Invalid JSON." }); }
+
+    const existing = payload.existing || { repetitions: 0, easeFactor: 2.5, interval: 0 };
+    // parseInt() returns NaN (never undefined) for missing/non-numeric input,
+    // so guard with Number.isInteger and fall back to the SM-2 default of 3,
+    // clamped to the valid quality range (0-5) — otherwise applySM2 persists NaN.
+    const parsedQuality = Number.parseInt(payload.quality, 10);
+    const quality = Number.isInteger(parsedQuality)
+      ? Math.max(0, Math.min(5, parsedQuality))
+      : 3;
+    const updated = applySM2(existing, quality);
+    updated.problemId = parseInt(problemId) || 0;
+
+    try {
+      if (useFirestore) {
+        await db.collection("users").doc(session.sub).collection("spacedRepetition").doc(String(problemId)).set(updated);
+      } else {
+        const users = await readUsers();
+        const idx = users.findIndex(u => u.id === session.sub);
+        if (idx !== -1) {
+          if (!users[idx].spacedRepetition) users[idx].spacedRepetition = {};
+          users[idx].spacedRepetition[problemId] = updated;
+          await writeUsers(users);
+        }
+      }
+      return sendJson(res, 200, { success: true, card: updated });
+    } catch (err) {
+      console.error("Error saving spaced repetition card:", err);
+      return sendJson(res, 500, { error: "Failed to save spaced repetition card." });
+    }
+  }
+
   // ── Collaborative Study Rooms endpoints ──────────────────────────────────
   if (pathname === "/api/study-rooms" && req.method === "GET") {
     const roomsList = [];
@@ -2166,7 +2649,8 @@ if (pathname === "/api/forgot-password" && req.method === "POST") {
     await writeUsers(users);
 
     const sessionToken = createAccessToken(users[idx]);
-    res.setHeader("Set-Cookie", authCookies(sessionToken, req));
+    const refreshToken = createRefreshToken(users[idx]);
+    res.setHeader("Set-Cookie", authCookies(sessionToken, refreshToken, req));
     return sendJson(res, 200, { ok: true });
   }
 
@@ -2194,6 +2678,9 @@ if (pathname === "/api/forgot-password" && req.method === "POST") {
   }
 
   if (pathname === "/api/predict-acceptance" && req.method === "POST") {
+    if (!applyRateLimit(req, res, predictionLimiter, "Too many prediction requests. Please try again later.")) {
+      return;
+    }
     let payload;
     try {
       payload = await readJsonBody(req);
@@ -2228,6 +2715,101 @@ if (pathname === "/api/forgot-password" && req.method === "POST") {
     }
   }
 
+  // ── Execution History Endpoints ─────────────────────────────────────────
+
+  if (pathname === "/api/executions" && req.method === "GET") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    try {
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const language = url.searchParams.get("language");
+      const dateFrom = url.searchParams.get("from");
+      const dateTo = url.searchParams.get("to");
+      const limit = Math.min(Number(url.searchParams.get("limit")) || 50, 200);
+
+      const all = await readExecutions();
+      let list = all.filter(e => e.userId === session.sub);
+
+      if (language) {
+        list = list.filter(e => e.language?.toLowerCase() === language.toLowerCase());
+      }
+      if (dateFrom) {
+        const from = new Date(dateFrom);
+        list = list.filter(e => new Date(e.createdAt) >= from);
+      }
+      if (dateTo) {
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59, 999);
+        list = list.filter(e => new Date(e.createdAt) <= to);
+      }
+
+      list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      list = list.slice(0, limit);
+
+      const summary = list.map(e => ({
+        id: e.id,
+        language: e.language,
+        exitCode: e.exitCode,
+        error: !!e.error,
+        createdAt: e.createdAt,
+        cpuTime: e.cpuTime,
+        preview: (e.originalCode || e.sourceCode || '').slice(0, 120),
+        hasSnapshots: Array.isArray(e.variableSnapshots) && e.variableSnapshots.length > 0
+      }));
+
+      return sendJson(res, 200, { executions: summary, total: all.filter(e => e.userId === session.sub).length });
+    } catch (err) {
+      console.error("Error fetching executions:", err);
+      return sendJson(res, 500, { error: "Failed to fetch execution history." });
+    }
+  }
+
+  if (pathname.startsWith("/api/executions/") && req.method === "GET") {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    const execId = pathname.slice("/api/executions/".length);
+    if (!execId) return sendJson(res, 400, { error: "Missing execution ID." });
+
+    try {
+      const all = await readExecutions();
+      const execution = all.find(e => e.id === execId && e.userId === session.sub);
+      if (!execution) return sendJson(res, 404, { error: "Execution not found." });
+
+      return sendJson(res, 200, { execution });
+    } catch (err) {
+      console.error("Error fetching execution:", err);
+      return sendJson(res, 500, { error: "Failed to fetch execution." });
+    }
+  }
+
+  if (pathname.startsWith("/api/executions/") && req.method === "POST" && pathname.endsWith("/snapshots")) {
+    const session = getSession(req);
+    if (!session) return sendJson(res, 401, { error: "Login required." });
+
+    const execId = pathname.split("/")[3];
+    if (!execId) return sendJson(res, 400, { error: "Missing execution ID." });
+
+    try {
+      const payload = await readJsonBody(req);
+      const snapshots = payload.snapshots;
+      if (!Array.isArray(snapshots)) return sendJson(res, 400, { error: "Snapshots must be an array." });
+
+      await updateExecutionStore((store) => {
+        const idx = store.findIndex(e => e.id === execId && e.userId === session.sub);
+        if (idx !== -1) {
+          store[idx].variableSnapshots = snapshots;
+        }
+      });
+
+      return sendJson(res, 200, { success: true });
+    } catch (err) {
+      console.error("Error saving snapshots:", err);
+      return sendJson(res, 500, { error: "Failed to save snapshots." });
+    }
+  }
+
   return sendJson(res, 404, { error: "Not found." });
 }
 
@@ -2235,9 +2817,12 @@ function resolveStaticPath(pathname) {
 const routes = {
   "/": "index.html",
   "/login": "pages/auth/login.html",
+  "/login.html": "pages/auth/login.html",
   "/profile": "pages/profile/public-profile.html",
   "/signup": "pages/auth/signup.html",
+  "/signup.html": "pages/auth/signup.html",
   "/verify-email": "pages/auth/verify-email.html",
+  "/verify-email.html": "pages/auth/verify-email.html",
     "/community": "community.html",
     "/python-learning": "python-learning.html",
     "/javascript-learning": "javascript-learning.html",
@@ -2332,6 +2917,22 @@ async function serveStatic(req, res, pathname) {
     const fileStat = await fs.stat(target);
     const ext = path.extname(target);
 
+    // ── Server-side auth gate ────────────────────────────────────────────────
+    // A page may declare that it requires authentication with
+    // <meta name="auth-required" content="true">. Enforce it here so access is
+    // controlled by the server regardless of which URL reached the file — the
+    // client-side gate (auth-gate.js) is cosmetic only. Read the HTML once and
+    // reuse it below to avoid a second read.
+    let htmlContent = null;
+    if (ext === ".html") {
+      htmlContent = await fs.readFile(target, "utf-8");
+      const requiresAuth =
+        /<meta\b(?=[^>]*\sname\s*=\s*["']auth-required["'])(?=[^>]*\scontent\s*=\s*["']true["'])[^>]*>/i.test(htmlContent);
+      if (requiresAuth && !getSession(req)) {
+        return redirect(res, `/login?next=${encodeURIComponent(pathname)}`);
+      }
+    }
+
     // ETag generation based on file size and mtime
     const mtimeMs = fileStat.mtime.getTime();
     const size = fileStat.size;
@@ -2356,15 +2957,15 @@ async function serveStatic(req, res, pathname) {
       return res.end();
     }
 
-    let content = await fs.readFile(target);
+    let content;
 
     if (ext === ".html") {
       // Generate a dynamic nonce for CSP script elements
       const nonce = crypto.randomBytes(16).toString("base64");
-      
-      // Inject nonce into script tags in the HTML content
-      let htmlStr = content.toString("utf-8");
-      htmlStr = htmlStr.replace(/<script(\s|>)/gi, `<script nonce="${nonce}"$1`);
+
+      // Inject nonce into script tags in the HTML content (htmlContent was read
+      // by the auth gate above).
+      const htmlStr = htmlContent.replace(/<script(\s|>)/gi, `<script nonce="${nonce}"$1`);
       content = Buffer.from(htmlStr, "utf-8");
 
       headers["Content-Security-Policy"] = 
@@ -2377,6 +2978,8 @@ async function serveStatic(req, res, pathname) {
         `frame-src 'self' https://*.firebaseapp.com; ` +
         `object-src 'none'; ` +
         `base-uri 'self';`;
+    } else {
+      content = await fs.readFile(target);
     }
 
     headers["Content-Type"] = mimeTypes[ext] || "application/octet-stream";
@@ -2731,17 +3334,21 @@ socket.on('voice-ice', ({ roomId, candidate, to, from }) => {
 
   // ── COLLABORATIVE STUDY ROOM EVENTS ──
   socket.on("join-study-room", async ({ roomId, userId, userName }) => {
+    const session = getSession(socket.request);
+    const authUserId = session ? session.sub : userId;
+    const authUserName = session ? session.name : userName;
+
     socket.join(roomId);
-    socket.userId = userId;
+    socket.userId = authUserId;
     socket.studyRoomId = roomId;
-    socket.userName = userName;
+    socket.userName = authUserName;
 
     let room = studyRooms.get(roomId);
     if (!room) {
       room = {
         id: roomId,
-        hostId: userId,
-        hostName: userName,
+        hostId: authUserId,
+        hostName: authUserName,
         config: { maxParticipants: 4, timerDuration: 600, difficulty: "Medium", topic: "arrays", problems: [] },
         status: "lobby",
         participants: {},
@@ -2752,10 +3359,10 @@ socket.on('voice-ice', ({ roomId, candidate, to, from }) => {
       studyRooms.set(roomId, room);
     }
 
-    if (!room.participants[userId]) {
-      room.participants[userId] = {
-        id: userId,
-        name: userName,
+    if (!room.participants[authUserId]) {
+      room.participants[authUserId] = { 
+        id: authUserId,
+        name: authUserName,
         status: room.status === "playing" ? "solving" : "lobby",
         score: 0,
         timeTaken: null,
@@ -2763,7 +3370,7 @@ socket.on('voice-ice', ({ roomId, candidate, to, from }) => {
       };
     }
 
-    console.log(`👥 Study room: User ${userName} joined room ${roomId}`);
+    console.log(`👥 Study room: User ${authUserName} joined room ${roomId}`);
     io.to(roomId).emit("study-room-updated", serializeRoom(room));
   });
 
@@ -2880,13 +3487,12 @@ if (process.env.VERCEL !== "1" && process.env.NODE_ENV !== "test") {
         const url = `http://${host}:${port}`;
         console.log(`Server running at ${url}`);
         if (!process.env.SESSION_SECRET) {
-          if (process.env.NODE_ENV === "production") {
-            console.error("FATAL: SESSION_SECRET is required in production mode.");
-            process.exit(1);
-          }
-          console.warn(
-            "Using a development SESSION_SECRET. Set SESSION_SECRET before deploying.",
+          // Fail closed in every environment — a missing secret means tokens
+          // would be signed with a forgeable, hardcoded fallback.
+          console.error(
+            "FATAL: SESSION_SECRET is required. Set it in the environment before starting the server.",
           );
+          process.exit(1);
         }
       });
 
@@ -2904,4 +3510,4 @@ if (process.env.VERCEL !== "1" && process.env.NODE_ENV !== "test") {
       console.error("Failed to load environment configuration:", error);
       process.exit(1);
     });
-}
+  }
