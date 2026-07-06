@@ -1,5 +1,5 @@
 import multer from "multer";
-import { sendJson } from "../utils/helpers.js";
+import { sendJson, getSession } from "../utils/helpers.js";
 import { extractResumeText } from "../resume-analyzer/parser.js";
 import { calculateATS } from "../resume-analyzer/atsScore.js";
 import { findMissingSkills } from "../resume-analyzer/skills.js";
@@ -12,6 +12,13 @@ const upload = multer({
 }).single("resume");
 
 export async function handleAnalyzeResume(req, res) {
+  // Auth check — parsing an uploaded file is expensive work and must not be
+  // reachable anonymously.
+  const session = getSession(req);
+  if (!session) {
+    return sendJson(res, 401, { error: "Login required." });
+  }
+
   try {
     await new Promise((resolve, reject) => {
       upload(req, res, (err) => {
