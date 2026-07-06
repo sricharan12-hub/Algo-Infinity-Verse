@@ -22,7 +22,6 @@ const __dirname = path.dirname(__filename);
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, "data");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
-const CodingPersonalityAnalyzer = require("./personalityAnalyzer.js");
 const MEMORY_FILE = path.join(DATA_DIR, "memory.json");
 const SESSION_COOKIE = "aiv_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
@@ -726,36 +725,6 @@ if (process.env.VERCEL !== "1") {
       useFirestore = !!db;
       const port = Number(process.env.PORT || 3000);
       const host = process.env.HOST || "127.0.0.1";
-
-      // ===== CODING PERSONALITY =====
-      app.get("/api/user/personality", (req, res) => {
-        try {
-          const userId = req.user?.id || req.query.userId;
-
-          if (!userId) {
-            return res.status(401).json({ error: "User not authenticated" });
-          }
-
-          // Get user data - replace with actual DB fetch
-          const userData = {
-            problems: [],
-            submissions: [],
-            topics: [],
-            streak: 0,
-          };
-
-          const analyzer = new CodingPersonalityAnalyzer(userData);
-          const personality = analyzer.analyze();
-
-          res.json({
-            success: true,
-            data: personality,
-          });
-        } catch (error) {
-          console.error("Personality analysis error:", error);
-          res.status(500).json({ error: "Failed to analyze personality" });
-        }
-      });
 
       server.listen(port, host, () => {
         const url = `http://${host}:${port}`;

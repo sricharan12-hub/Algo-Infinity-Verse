@@ -1,4 +1,4 @@
-class CodingPersonalityAnalyzer{
+export class CodingPersonalityAnalyzer{
     constructor(userData){
         this.userData = userData;
     }
@@ -46,5 +46,3 @@ calculateMetrics() {
     return traits;
   }
 }
-
-module.exports = CodingPersonalityAnalyzer;
