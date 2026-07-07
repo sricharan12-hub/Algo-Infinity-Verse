@@ -18,6 +18,7 @@ import {
   sessionCookie,
   clearSessionCookie,
 } from "./sessionToken.js";
+import { COLLECTIONS } from "../../firebase.js";
 
 export const DATA_DIR = path.join(process.cwd(), "data");
 
@@ -126,8 +127,13 @@ export async function getUserByEmail(email, useFirestore = false, db = null) {
     const users = await readUsers();
     return users.find((u) => u.email === email) || null;
   }
-  // Firestore implementation
-  return null;
+  const snapshot = await db
+    .collection(COLLECTIONS.USERS)
+    .where("email", "==", email)
+    .limit(1)
+    .get();
+  if (snapshot.empty) return null;
+  return { ...snapshot.docs[0].data(), id: snapshot.docs[0].id };
 }
 
 export async function createUser(userData, useFirestore = false, db = null) {
@@ -137,8 +143,8 @@ export async function createUser(userData, useFirestore = false, db = null) {
     await writeUsers(users);
     return userData;
   }
-  // Firestore implementation
-  return userData;
+  const docRef = await db.collection(COLLECTIONS.USERS).add(userData);
+  return { ...userData, id: docRef.id };
 }
 
 // Password Functions — delegate to the PBKDF2 implementation in
