@@ -24,7 +24,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
-              labels: ["nsoc26"]
+              labels: ["SSoC26"]
             });
 
             // 🔍 Get issues
