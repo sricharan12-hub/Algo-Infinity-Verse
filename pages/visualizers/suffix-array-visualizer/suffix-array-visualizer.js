@@ -385,6 +385,10 @@
   }
 
   function setButtons() {
+    clearCompareHighlights();
+
+    const total = state.steps.length;
+
     const total = state.steps.length;
     const atStart = state.idx <= 0;
     const atEnd = total === 0 || state.idx >= total - 1;
@@ -482,8 +486,105 @@
     el.combinedKey.textContent = combinedKey;
     // Keep len/k mention implicit in the combined key.
   }
-+
-+  function renderRound() {
+
+  function getRoundKey
+    if (!step || !step.ranks) return [null, null];
+    const r1 = step.ranks[idx];
+    const r2Idx = idx + len;
+    const r2 = r2Idx < step.ranks.length ? step.ranks[r2Idx] : -1;
+    return [r1, r2];
+  }
+
+  function compareKeyPairs(pairA, pairB) {
+    if (pairA[0] !== pairB[0]) return pairA[0] - pairB[0];
+    if (pairA[1] !== pairB[1]) return pairA[1] - pairB[1];
+    return 0;
+  }
+
+  function findRowIdxForSuffix(step, suffixIndex) {
+    if (!step || !step.ordering) return -1;
+    return step.ordering.indexOf(suffixIndex);
+  }
+
+  function clearCompareHighlights() {
+    if (!el.tableBody) return;
+    el.tableBody.querySelectorAll('.sa-compare-i-row, .sa-compare-j-row').forEach((node) => {
+      node.classList.remove('sa-compare-i-row');
+      node.classList.remove('sa-compare-j-row');
+    });
+  }
+
+  function setCompareRowHighlight(step, i, j) {
+    clearCompareHighlights();
+    if (!step || !step.ordering) return;
+    const iRowIdx = findRowIdxForSuffix(step, i);
+    const jRowIdx = findRowIdxForSuffix(step, j);
+
+    if (iRowIdx < 0 || jRowIdx < 0) return;
+
+    const children = Array.from(el.tableBody.children);
+    if (children[iRowIdx]) children[iRowIdx].classList.add('sa-compare-i-row');
+    if (children[jRowIdx]) children[jRowIdx].classList.add('sa-compare-j-row');
+  }
+
+  function computeAndDisplayComparison(step, i, j) {
+    const n = state.s.length;
+    if (!step || !step.ranks) {
+      if (el.compareWarning) el.compareWarning.style.display = 'block';
+      if (el.compareResult) el.compareResult.textContent = 'No data for comparison yet.';
+      return;
+    }
+
+    if (!Number.isInteger(i) || !Number.isInteger(j)) {
+      if (el.compareWarning) {
+        el.compareWarning.textContent = 'Indices must be integers.';
+        el.compareWarning.style.display = 'block';
+      }
+      if (el.compareResult) el.compareResult.textContent = '';
+      return;
+    }
+
+    if (i < 0 || i >= n || j < 0 || j >= n) {
+      if (el.compareWarning) {
+        el.compareWarning.textContent = `Indices must be in range [0, ${n - 1}].`;
+        el.compareWarning.style.display = 'block';
+      }
+      if (el.compareResult) el.compareResult.textContent = '';
+      return;
+    }
+
+    if (el.compareWarning) el.compareWarning.style.display = 'none';
+
+    const len = step.len;
+    const keyI = getRoundKey(step, i, len);
+    const keyJ = getRoundKey(step, j, len);
+
+    const cmp = compareKeyPairs(keyI, keyJ);
+    const relation = cmp === 0 ? 'equal to' : cmp < 0 ? 'less than' : 'greater than';
+    const chosenEarlier =
+      cmp === 0
+        ? 'Tie (same key). Ordering falls back to suffix index tie-break.'
+        : cmp < 0
+          ? `key(i) < key(j), so suffix i is chosen earlier.`
+          : `key(j) < key(i), so suffix j is chosen earlier.`;
+
+    const previewI = substringForSuffix(state.s, i);
+    const previewJ = substringForSuffix(state.s, j);
+
+    if (el.compareResult) {
+      el.compareResult.innerHTML = `
+        <div><b>Current round key length</b>: len = <span class="fira">${len}</span> (2^k)</div>
+        <div><b>key(i)</b> = (${keyI[0] ?? '-'}, ${keyI[1] ?? '-'}) for suffix ${i} ("${previewI}")</div>
+        <div><b>key(j)</b> = (${keyJ[0] ?? '-'}, ${keyJ[1] ?? '-'}) for suffix ${j} ("${previewJ}")</div>
+        <div><b>Comparison</b>: key(i) is <b>${relation}</b> key(j). ${chosenEarlier}</div>
+      `;
++    }
+
+    // Highlight rows in the table simultaneously.
+    setCompareRowHighlight(step, i, j);
+  }
+
+  function renderRound() {
     const total = state.steps.length;
     if (!total) {
       el.stepIndicator.textContent = `Round: 0 / 0`;
@@ -570,23 +671,11 @@
 
       tr.append(suffixCell, rankCell, keyCell, nextRankCell);
 
-      tr.setAttribute('tabindex', '0');
-
       tr.addEventListener('click', () => {
         state.selectedRowIdx = rowIdx;
         state.activeSuffixRow = rowIdx;
         updateDrillDownPanel();
         renderRound();
-      });
-
-      tr.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          state.selectedRowIdx = rowIdx;
-          state.activeSuffixRow = rowIdx;
-          updateDrillDownPanel();
-          renderRound();
-        }
       });
 
       el.tableBody.appendChild(tr);

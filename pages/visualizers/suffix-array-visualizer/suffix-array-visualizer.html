@@ -250,6 +250,45 @@
                 <div class="legend-item"><span class="legend-color updated"></span><span>Ranks updated this round</span></div>
               </div>
 
+              <div class="control-group">
+                <label for="saCompareIInput">
+                  Compare suffixes (indices i and j)
+                  <span class="val-display">current round keys</span>
+                </label>
+
+                <div class="compare-grid">
+                  <input
+                    type="number"
+                    id="saCompareIInput"
+                    class="control-input"
+                    min="0"
+                    step="1"
+                    value="0"
+                    placeholder="i"
+                  />
+                  <input
+                    type="number"
+                    id="saCompareJInput"
+                    class="control-input"
+                    min="0"
+                    step="1"
+                    value="1"
+                    placeholder="j"
+                  />
+                </div>
+
+                <button type="button" id="saCompareBtn" class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem;">
+                  <i class="fas fa-scale-balanced"></i> Compare indices
+                </button>
+
+                <div class="warn-box" id="saCompareWarning" aria-live="polite"></div>
+
+                <div class="compare-result" id="saCompareResult" aria-live="polite">
+                  Enter indices and click <b>Compare indices</b>.
+                </div>
+
+              </div>
+
               <div class="visualizer-card drilldown-card" id="saDrilldownCard">
                 <h3>
                   <i class="fas fa-magnifying-glass" style="color: var(--accent); margin-right: 0.5rem"></i>
