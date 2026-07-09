@@ -249,6 +249,42 @@
                 <div class="legend-item"><span class="legend-color current"></span><span>Active suffix index</span></div>
                 <div class="legend-item"><span class="legend-color updated"></span><span>Ranks updated this round</span></div>
               </div>
+
+              <div class="visualizer-card drilldown-card" id="saDrilldownCard">
+                <h3>
+                  <i class="fas fa-magnifying-glass" style="color: var(--accent); margin-right: 0.5rem"></i>
+                  Drill-down (Selected Suffix)
+                </h3>
+
+                <div class="drilldown-row">
+                  <span class="drilldown-label">Suffix index i</span>
+                  <span class="drilldown-value" id="saSelectedSuffixIndex">—</span>
+                </div>
+
+                <div class="drilldown-row">
+                  <span class="drilldown-label">First half rank[i]</span>
+                  <span class="drilldown-value" id="saFirstHalfRank">—</span>
+                </div>
+
+                <div class="drilldown-row">
+                  <span class="drilldown-label">Second half rank[i+len]</span>
+                  <span class="drilldown-value" id="saSecondHalfRank">—</span>
+                </div>
+
+                <div class="drilldown-row">
+                  <span class="drilldown-label">Combined key</span>
+                  <span class="drilldown-value" id="saCombinedKey">—</span>
+                </div>
+
+                <div class="drilldown-divider"></div>
+
+                <div class="drilldown-row">
+                  <span class="drilldown-label">Compared vs adjacent suffix</span>
+                  <span class="drilldown-value" id="saAdjacentComparison">—</span>
+                </div>
+
+                <div class="drilldown-reason" id="saDrilldownReason">Select a row in the table to see reasoning.</div>
+              </div>
             </div>
 
             <div class="visualizer-card">

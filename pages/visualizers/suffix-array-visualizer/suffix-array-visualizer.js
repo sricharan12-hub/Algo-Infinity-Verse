@@ -8,6 +8,8 @@
     timer: null,
     delay: 400,
     activeSuffixRow: -1,
+    selectedRowIdx: -1,
+
 
     caseInsensitive: true,
     allowSpaces: true,
@@ -46,6 +48,15 @@
     allowSpacesToggle: document.getElementById('saAllowSpacesToggle'),
     modeHint: document.getElementById('saModeHint'),
     inputWarning: document.getElementById('saInputWarning'),
+
+    // Drill-down panel elements
+    selectedSuffixIndex: document.getElementById('saSelectedSuffixIndex'),
+    firstHalfRank: document.getElementById('saFirstHalfRank'),
+    secondHalfRank: document.getElementById('saSecondHalfRank'),
+    combinedKey: document.getElementById('saCombinedKey'),
+    adjacentComparison: document.getElementById('saAdjacentComparison'),
+    drilldownReason: document.getElementById('saDrilldownReason'),
+
   };
 
 
@@ -266,7 +277,95 @@
     el.pauseBtn.disabled = !state.playing;
   }
 
-  function renderRound() {
+  function updateDrillDownPanel() {
+    const step = state.steps[state.idx];
+    if (!step || !el.selectedSuffixIndex) return;
+
+    const totalRows = step.ordering ? step.ordering.length : 0;
+    if (state.selectedRowIdx < 0 || state.selectedRowIdx >= totalRows) {
+      el.selectedSuffixIndex.textContent = '—';
+      el.firstHalfRank.textContent = '—';
+      el.secondHalfRank.textContent = '—';
+      el.combinedKey.textContent = '—';
+      el.adjacentComparison.textContent = '—';
+      el.drilldownReason.textContent = 'Select a row in the table to see reasoning.';
+      return;
+    }
+
+    const suffixIndex = step.ordering[state.selectedRowIdx];
+    const len = step.len;
+    const n = state.s.length;
+
+    const firstHalfRank = step.ranks ? step.ranks[suffixIndex] : undefined;
+    const secondHalfIndex = suffixIndex + len;
+    const secondHalfRank = secondHalfIndex < n && step.ranks ? step.ranks[secondHalfIndex] : -1;
+
+    const combinedKey = `(${firstHalfRank ?? '-'}, ${secondHalfRank})`;
+
+    // Adjacent suffix reasoning: compare against previous row in sorted order.
+
+
+    const prevRowIdx = state.selectedRowIdx - 1;
+
+    let adjacentText = '—';
+    let reasonText = '';
+
+    if (prevRowIdx >= 0) {
+      const prevSuffixIndex = step.ordering[prevRowIdx];
+      const prevFirstHalfRank = step.ranks ? step.ranks[prevSuffixIndex] : undefined;
+      const prevSecondHalfIndex = prevSuffixIndex + len;
+      const prevSecondHalfRank =
+        prevSecondHalfIndex < n && step.ranks ? step.ranks[prevSecondHalfIndex] : -1;
+
+      const thisKey = [firstHalfRank, secondHalfRank];
+      const prevKey = [prevFirstHalfRank, prevSecondHalfRank];
+
+      const same0 = thisKey[0] === prevKey[0];
+      const same1 = thisKey[1] === prevKey[1];
+
+      if (same0 && same1) {
+        adjacentText = `Adjacent previous suffix key is equal (${combinedKey}).`;
+        reasonText =
+          'Keys are equal, so ranks tie. The ordering falls back to suffix index tie-breaker in sorting.';
+      } else {
+        // Lexicographic compare for the doubling key.
+        // Higher key means it should appear after in ascending sort; we can describe relative.
+        let cmp = 0;
+        if ((thisKey[0] ?? -1) !== (prevKey[0] ?? -1)) {
+          cmp = (thisKey[0] ?? -1) - (prevKey[0] ?? -1);
+        } else {
+          cmp = (thisKey[1] ?? -1) - (prevKey[1] ?? -1);
+        }
+
+
+        const rel = cmp > 0 ? 'greater than' : 'less than';
+        const diffPart = !same0 ? 'first half rank' : 'second half rank';
+        adjacentText = `Compared to previous suffix (row ${prevRowIdx}): key is ${rel} the adjacent key.`;
+        reasonText = `Lexicographic compare of (rank[i], rank[i+len]) differs at ${diffPart}.`;
+      }
+
+      el.adjacentComparison.textContent = `${adjacentText}`;
+      el.drilldownReason.textContent = reasonText;
+
+      const prevSuffixPreview = substringForSuffix(state.s, step.ordering[prevRowIdx]);
+      if (prevSuffixPreview) {
+        // keep reasonText concise but informative
+        // (No-op for now; panel already has main explanation.)
+      }
+
+    } else {
+      el.adjacentComparison.textContent = 'No previous adjacent suffix in this sorted order.';
+      el.drilldownReason.textContent = 'This suffix is the first row of the current sorted ordering.';
+    }
+
+    el.selectedSuffixIndex.textContent = String(suffixIndex);
+    el.firstHalfRank.textContent = String(firstHalfRank ?? '-');
+    el.secondHalfRank.textContent = String(secondHalfRank);
+    el.combinedKey.textContent = combinedKey;
+    // Keep len/k mention implicit in the combined key.
+  }
++
++  function renderRound() {
     const total = state.steps.length;
     if (!total) {
       el.stepIndicator.textContent = `Round: 0 / 0`;
@@ -286,6 +385,12 @@
 
     const step = state.steps[state.idx];
     const n = state.s.length;
+
+    // If nothing is selected yet, default to the first sorted row.
+    if (state.selectedRowIdx < 0 && step && step.ordering && step.ordering.length > 0) {
+      state.selectedRowIdx = 0;
+    }
+
 
     el.stepIndicator.textContent = `Round: ${state.idx} / ${total - 1}`;
     el.phaseLabel.textContent = step.phase;
@@ -347,8 +452,22 @@
 
       tr.append(suffixCell, rankCell, keyCell, nextRankCell);
 
+      tr.addEventListener('click', () => {
+        state.selectedRowIdx = rowIdx;
+        state.activeSuffixRow = rowIdx;
+        updateDrillDownPanel();
+        renderRound();
+      });
+
       el.tableBody.appendChild(tr);
     });
+
+    // Keep drill-down panel synced with current selected row for this round.
+    if (state.selectedRowIdx < 0 && step.ordering && step.ordering.length > 0) {
+      state.selectedRowIdx = 0;
+    }
+    updateDrillDownPanel();
+
 
     const isFinalRound = state.idx === total - 1;
     el.finalOrder.textContent = isFinalRound && state.finalOrder
