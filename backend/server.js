@@ -16,9 +16,23 @@ import { commonPasswords } from "./config/passwordBlacklist.js";
 import { validateAndNormalizeEmail } from "./utils/emailValidation.js";
 
 const MAX_RESUME_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_RESUME_FILE_SIZE_BYTES, files: 1 },
+  fileFilter: (req, file, cb) => {
+    const allowedMimeTypes = [
+      'application/pdf',                                                      // .pdf
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/msword'                                                    // .doc
+    ];
+
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true); // Accept file
+    } else {
+      cb(new Error('Invalid file type. Only PDF, DOC, and DOCX files are allowed.'), false); // Reject file
+    }
+  }
 }).single("resume");
 
 const __filename = fileURLToPath(import.meta.url);
