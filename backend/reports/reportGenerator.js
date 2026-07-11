@@ -1,5 +1,15 @@
 import puppeteer from 'puppeteer';
 
+let browserPromise = null;
+
+async function getBrowser() {
+  if (!browserPromise) {
+    browserPromise = puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    });
+  }
+  return browserPromise;
 // ============================================
 // CONFIGURABLE SETTINGS
 // ============================================
@@ -235,9 +245,11 @@ export async function handleReportRequest(req, res, pathname, session) {
 
   const type = pathname === '/api/reports/export/pdf' ? 'pdf' : 'image';
   let page = null;
+  let browser = null;
   
   try {
-    page = await browserManager.createPage();
+    browser = await getBrowser();
+    page = await browser.newPage();
     
     const mockData = {};
     const html = buildHtmlTemplate(session, mockData);
@@ -278,15 +290,10 @@ export async function handleReportRequest(req, res, pathname, session) {
     return res.end(JSON.stringify({ error: 'Failed to generate report' }));
     
   } finally {
+    // ✅ FIX: Always close page, even on error
     if (page && !page.isClosed()) {
-      await browserManager.closePage(page);
+      await page.close();
+      console.log('Page closed (including error path)');
     }
   }
 }
-
-// ============================================
-// EXPORTS
-// ============================================
-
-export default browserManager;
-export { BrowserManager, browserManager };
