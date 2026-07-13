@@ -2,6 +2,9 @@
 // USER PROGRESS STATE
 // ============================================
 window.userProgress = {
+  name: "Learner",
+  avatar: "🚀",
+  bio: '',
   name: 'Learner',
   avatar: '🚀',
   completedProblems: [],
