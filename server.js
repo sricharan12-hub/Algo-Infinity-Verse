@@ -3271,12 +3271,12 @@ async function serveStatic(req, res, pathname) {
 
       headers['Content-Security-Policy'] =
         `default-src 'self'; ` +
-        `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com; ` +
-        `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; ` +
+        `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com https://cdn.tailwindcss.com https://cdn.jsdelivr.net; ` +
+        `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; ` +
         `font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; ` +
         `img-src 'self' data: https: blob:; ` +
         `connect-src 'self' https: wss:; ` +
-        `frame-src 'self' https://*.firebaseapp.com; ` +
+        `frame-src 'self' blob: https://*.firebaseapp.com; ` +
         `object-src 'none'; ` +
         `base-uri 'self';`;
     } else {
