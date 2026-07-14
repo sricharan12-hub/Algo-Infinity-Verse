@@ -65,7 +65,7 @@ const academies = [
     category: 'Frontend',
     icon: 'fa-brands fa-bootstrap',
     difficulty: 'Beginner',
-    desc: 'Build responsive, mobile-first sites quickly with Bootstrap\'s grid system and components.',
+    desc: "Build responsive, mobile-first sites quickly with Bootstrap's grid system and components.",
   },
   {
     id: 'mui',
@@ -75,6 +75,15 @@ const academies = [
     icon: 'mui',
     difficulty: 'Intermediate',
     desc: 'Create polished React apps with Material Design components, theming, and customization.',
+  },
+  {
+    id: 'threejs',
+    name: 'Three.js Academy',
+    path: '/pages/learning/threejs-academy/threejs-academy.html',
+    category: 'Frontend',
+    icon: 'fa-solid fa-cube',
+    difficulty: 'Intermediate',
+    desc: 'Master 3D web development, scene graphs, cameras, lighting setups, materials, and complex mesh animations.',
   },
 
   // ── Backend ──
@@ -217,6 +226,24 @@ const academies = [
     difficulty: 'Intermediate',
     desc: 'Master PostgreSQL for relational databases, advanced queries, indexing, and data integrity.',
   },
+  {
+    id: 'cassandra',
+    name: 'Cassandra Learning Hub',
+    path: '/pages/cassandra-learning-hub/cassandra-learning-hub.html',
+    category: 'Databases',
+    icon: 'fa-solid fa-server',
+    difficulty: 'Advanced',
+    desc: 'Distributed NoSQL database concepts — partitioning, replication, CQL, and architecture with Apache Cassandra.',
+  },
+  {
+    id: 'redis',
+    name: 'Redis Learning Hub',
+    path: '/pages/redis-learning-hub/redis-learning-hub.html',
+    category: 'Databases',
+    icon: 'fa-solid fa-database',
+    difficulty: 'Intermediate',
+    desc: 'In-memory data store for caching, pub/sub messaging, and core Redis data structures with interactive simulations.',
+  },
 
   // ── AI / Misc ──
   {
@@ -233,10 +260,10 @@ const academies = [
 /* ─── Categories with counts ─── */
 const categoryDefs = [
   { label: 'All', key: 'all', count: academies.length },
-  { label: 'Frontend', key: 'frontend', count: 8 },
+  { label: 'Frontend', key: 'frontend', count: 9 },
   { label: 'Backend', key: 'backend', count: 8 },
   { label: 'Cloud & DevOps', key: 'cloud-devops', count: 2 },
-  { label: 'Databases', key: 'databases', count: 5 },
+  { label: 'Databases', key: 'databases', count: 7 },
   { label: 'AI / Misc', key: 'ai-misc', count: 1 },
 ];
 
@@ -378,8 +405,7 @@ const svgIcons = {
     'M23.953 4.57a10 10 0 0 1-2.825.775a4.4 4.4 0 0 0-1.896-1.78a10.2 10.2 0 0 0-3.35-.851a11.1 11.1 0 0 0-3.66.082a9.6 9.6 0 0 0-3.415 1.488a8.9 8.9 0 0 0-2.6 2.656a8.5 8.5 0 0 0-1.076 3.031a9.3 9.3 0 0 0 .151 3.518a8.8 8.8 0 0 0 1.259 3.064a9.7 9.7 0 0 0 2.508 2.607a9.7 9.7 0 0 0 3.324 1.577a10.8 10.8 0 0 0 3.486.208a10.1 10.1 0 0 0 3.125-1.036V17.01l-4.48-2.613l-1.042.606a2.8 2.8 0 0 1-1.065.344a3.1 3.1 0 0 1-1.096-.065a2.6 2.6 0 0 1-1.007-.367a2.1 2.1 0 0 1-.723-1.424a2.7 2.7 0 0 1 .158-1.577a2.4 2.4 0 0 1 1.056-1.127l8.6-5.016Z',
   fastapi:
     'M12.023 0L2.93 4.394v8.789l9.093 4.394 9.093-4.394V4.394zm0 10.556L4.325 6.64v4.393l7.698 3.916 7.698-3.916V6.64zm0 7.832l-7.698-3.917v4.394l7.698 3.916 7.698-3.916v-4.394z',
-  mui:
-    'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+  mui: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
   typescript:
     'M316.939 407.424v50.061c8.138 4.172 17.763 7.3 28.875 9.386s22.823 3.129 35.135 3.129c11.999 0 23.397-1.147 34.196-3.442 10.799-2.294 20.268-6.075 28.406-11.342 8.138-5.266 14.581-12.15 19.328-20.65s7.121-19.007 7.121-31.522c0-9.074-1.356-17.026-4.069-23.857s-6.625-12.906-11.738-18.225c-5.112-5.319-11.242-10.091-18.389-14.315s-15.207-8.213-24.18-11.967c-6.573-2.712-12.468-5.345-17.685-7.9-5.217-2.556-9.651-5.163-13.303-7.822-3.652-2.66-6.469-5.476-8.451-8.448-1.982-2.973-2.974-6.336-2.974-10.091 0-3.441.887-6.544 2.661-9.308s4.278-5.136 7.512-7.118c3.235-1.981 7.199-3.52 11.894-4.615 4.696-1.095 9.912-1.642 15.651-1.642 4.173 0 8.581.313 13.224.938 4.643.626 9.312 1.591 14.008 2.894 4.695 1.304 9.259 2.947 13.694 4.928 4.434 1.982 8.529 4.276 12.285 6.884v-46.776c-7.616-2.92-15.937-5.084-24.962-6.492s-19.381-2.112-31.066-2.112c-11.895 0-23.163 1.278-33.805 3.833s-20.006 6.544-28.093 11.967c-8.086 5.424-14.476 12.333-19.171 20.729-4.695 8.395-7.043 18.433-7.043 30.114 0 14.914 4.304 27.638 12.912 38.172 8.607 10.533 21.675 19.45 39.204 26.751 6.886 2.816 13.303 5.579 19.25 8.291s11.086 5.528 15.415 8.448c4.33 2.92 7.747 6.101 10.252 9.543 2.504 3.441 3.756 7.352 3.756 11.733 0 3.233-.783 6.231-2.348 8.995s-3.939 5.162-7.121 7.196-7.147 3.624-11.894 4.771c-4.748 1.148-10.303 1.721-16.668 1.721-10.851 0-21.597-1.903-32.24-5.71-10.642-3.806-20.502-9.516-29.579-17.13zM232.78 284.082h64.22v-41.082h-179v41.082h63.906v182.918h50.874z',
   postgresql:
@@ -387,14 +413,16 @@ const svgIcons = {
 };
 
 const iconViewBox = {
-  typescript: '0 0 512 512'
+  typescript: '0 0 512 512',
 };
 
 function iconHtml(icon) {
   if (svgIcons[icon]) {
     const vb = iconViewBox[icon] || '0 0 24 24';
     return (
-      '<svg viewBox="' + vb + '" fill="currentColor" width="1em" height="1em"><path d="' +
+      '<svg viewBox="' +
+      vb +
+      '" fill="currentColor" width="1em" height="1em"><path d="' +
       svgIcons[icon] +
       '"/></svg>'
     );

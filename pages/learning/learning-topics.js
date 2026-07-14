@@ -81,6 +81,13 @@ const learningTopics = [
     icon: 'fa-language',
     desc: 'Prefix trees for autocomplete, spell check, and pattern matching.',
   },
+  {
+    name: 'Suffix Tree',
+    path: '/pages/learning/suffix-tree-learning/suffix-tree-learning.html',
+    category: 'Data Structures',
+    icon: 'fa-share-nodes',
+    desc: "Suffix trees from motivation to Ukkonen's algorithm, with interactive diagrams and practice problems.",
+  },
 
   // ── Core Algorithms ──
   {
@@ -146,6 +153,13 @@ const learningTopics = [
     icon: 'fa-microchip',
     desc: 'Bitwise operations, masks, XOR tricks, and space-efficient techniques.',
   },
+  {
+    name: 'Recursion vs Iteration',
+    path: '/pages/learning/recursion-vs-iteration-learning/recursion-vs-iteration-learning.html',
+    category: 'Core Algorithms',
+    icon: 'fa-code-compare',
+    desc: 'Compare recursive and iterative approaches — call stack behavior, tail recursion, stack simulation, and performance trade-offs.',
+  },
 
   // ── Advanced Algorithms ──
   {
@@ -189,6 +203,13 @@ const learningTopics = [
     category: 'Advanced Algorithms',
     icon: 'fa-trophy',
     desc: 'Competitive programming patterns and optimization techniques for contests.',
+  },
+  {
+    name: 'Computational Geometry',
+    path: '/pages/learning/computational-geometry/computational-geometry.html',
+    category: 'Advanced Algorithms',
+    icon: 'fa-draw-polygon',
+    desc: 'Geometric algorithms for points, lines, polygons, and convex hulls with interactive visualizations.',
   },
 
   // ── Special ──
@@ -240,6 +261,34 @@ const learningTopics = [
     category: 'Special',
     icon: 'fa-skull',
     desc: "Explore obsolete, retired, and historically significant algorithms from computing's past.",
+  },
+  {
+    name: 'Django Learning',
+    path: '/pages/learning/django-learning/django-learning.html',
+    category: 'Special',
+    icon: 'fa-cubes',
+    desc: 'Django web framework from MVT architecture to ORM handling, with interactive checkpoints and examples.',
+  },
+  {
+    name: 'Flask Learning',
+    path: '/pages/learning/flask-learning/flask-learning.html',
+    category: 'Special',
+    icon: 'fa-flask',
+    desc: 'Flask microframework from routing structures to database integration, with mini-projects and interactive checkpoints.',
+  },
+  {
+    name: 'System Design Canvas',
+    path: '/pages/learning/system-design-canvas/index.html',
+    category: 'Special',
+    icon: 'fa-chalkboard',
+    desc: 'Drag-and-drop canvas to build and simulate scalable system architectures and data flow.',
+  },
+  {
+    name: 'WebGL Learning',
+    path: '/pages/learning/webgl-learning/webgl-learning.html',
+    category: 'Special',
+    icon: 'fa-cube',
+    desc: 'Low-level graphics programming with GPU pipeline control, shaders, and hardware-accelerated rendering.',
   },
 ];
 
@@ -312,7 +361,6 @@ function buildFilters() {
 
 /* ─── Render cards ─── */
 function render() {
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const filtered = learningTopics.filter((v) => {
     const matchCategory =
       activeCategory === 'all' ||
@@ -336,7 +384,7 @@ function render() {
 
   emptyState.style.display = 'none';
   grid.innerHTML = filtered
-    .map((v, i) => {
+    .map((v) => {
       const catKey = v.category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const displayCat = categoryDisplayNames[catKey] || v.category;
       return `

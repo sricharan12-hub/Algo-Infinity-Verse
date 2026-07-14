@@ -1,30 +1,35 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Profile — Algo Infinity Verse</title>
 
     <!-- Core Styles -->
-    <link rel="stylesheet" href="../../styles.css">
-    <link rel="stylesheet" href="profile.css">
-    <link rel="stylesheet" href="identity-card.css">
+    <link rel="stylesheet" href="../../styles.css" />
+    <link rel="stylesheet" href="profile.css" />
+    <link rel="stylesheet" href="identity-card.css" />
 
     <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Poppins:wght@300;400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Poppins:wght@300;400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
 
     <!-- Firebase (Same as index.html) -->
     <script type="importmap">
-    {
-      "imports": {
-        "supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+      {
+        "imports": {
+          "supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+        }
       }
-    }
     </script>
-</head>
-<body data-page="profile">
-
+  </head>
+  <body data-page="profile">
     <!-- Loading Screen -->
     <div id="loading-screen" class="hidden">
       <div class="loader">
@@ -37,234 +42,260 @@
     <div id="navbar-placeholder"></div>
 
     <main class="profile-container">
+      <!-- Back button -->
+      <nav class="profile-nav">
+        <button type="button" class="back-btn" id="profileBackBtn" aria-label="Back to Dashboard">
+          <i class="fas fa-arrow-left"></i>
+          <span>Back to Dashboard</span>
+        </button>
+      </nav>
 
-        <!-- Back button -->
-        <nav class="profile-nav">
-            <button type="button" class="back-btn" id="profileBackBtn" aria-label="Back to Dashboard">
-                <i class="fas fa-arrow-left"></i>
-                <span>Back to Dashboard</span>
-            </button>
-        </nav>
-
-        <!-- Profile header -->
-        <header class="profile-hero">
-
-            <!-- Avatar -->
-            <div class="profile-avatar-wrapper">
-                <div class="profile-avatar-large" id="profileAvatarWrapper">
-                    <img
-                        id="profileAvatarImage"
-                        class="avatar-preview"
-                        alt="Profile avatar"
-                        style="display: none;"
-                    >
-                    <span class="avatar-icon" id="profileAvatarEmoji"></span>
-                </div>
-                <button
-                    type="button"
-                    class="avatar-upload-overlay"
-                    id="avatarUploadOverlay"
-                    aria-controls="avatarFileInput"
-                    title="Change avatar"
-                >
-                    <i class="fas fa-camera"></i>
-                </button>
-                <input
-                    type="file"
-                    id="avatarFileInput"
-                    class="avatar-file-input"
-                    accept="image/*"
-                    aria-label="Upload profile picture"
-                >
-            </div>
-
-            <!-- Info -->
-            <div class="profile-info-group">
-                <h1 id="userName">Learner</h1>
-                <p class="profile-level-text" id="userLevel">Level 1 &mdash; Beginner</p>
-
-                <!-- XP progress -->
-                <div class="profile-xp-bar">
-                    <div class="xp-bar-track">
-                        <div class="xp-bar-fill" id="profileProgressBar"></div>
-                    </div>
-                    <span class="xp-bar-label" id="profileLevelProgress">0%</span>
-                </div>
-
-                <!-- Stats -->
-                <div class="profile-stats-row">
-                    <div class="profile-stat">
-                        <span class="stat-value" id="userStreak">0</span>
-                        <span class="stat-label">Streak</span>
-                    </div>
-                    <div class="profile-stat">
-                        <span class="stat-value" id="userXP">0</span>
-                        <span class="stat-label">XP</span>
-                    </div>
-                    <div class="profile-stat">
-                        <span class="stat-value" id="profileProblems">0</span>
-                        <span class="stat-label">Problems</span>
-                    </div>
-                    <div class="profile-stat">
-                        <span class="stat-value" id="profileBadges">0</span>
-                        <span class="stat-label">Badges</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Edit -->
-            <button class="profile-edit-btn" id="profilePageEditBtn" title="Edit Profile" aria-label="Edit Profile">
-                <i class="fas fa-pen"></i>
-            </button>
-        </header>
-
-        <!-- Languages -->
-        <section class="profile-languages-section">
-            <span class="section-label">Languages</span>
-            <button type="button" class="lang-edit-btn" id="languagesEditBtn" title="Edit Languages" aria-label="Edit Languages">
-                <i class="fas fa-pen"></i> Edit
-            </button>
-            <div id="profileLanguages" class="languages-list">
-                <!-- Populated by profile-edit.js -->
-            </div>
-        </section>
-
-        <!-- Two-column: identity card + leaderboard -->
-        <div class="profile-split">
-
-            <!-- Identity Card -->
-            <section class="identity-card-section">
-                <div class="section-header">
-                    <h2><i class="fas fa-id-card"></i> Coding Identity Card</h2>
-                </div>
-
-                <div class="theme-selector-container">
-                    <button type="button" class="theme-btn active" data-theme="cyberpunk">Cyberpunk</button>
-                    <button type="button" class="theme-btn" data-theme="cosmic">Cosmic</button>
-                    <button type="button" class="theme-btn" data-theme="obsidian">Obsidian</button>
-                    <button type="button" class="theme-btn" data-theme="emerald">Emerald</button>
-                </div>
-
-                <div class="card-display-container">
-                    <div id="codingIdentityCard" class="coding-card theme-cyberpunk">
-                        <div class="card-glow"></div>
-                        <div class="card-grid"></div>
-
-                        <div class="card-header">
-                            <div class="logo-area">
-                                <span class="logo-icon">&infin;</span>
-                                <span class="logo-text">ALGO INFINITY</span>
-                            </div>
-                            <div class="card-type">DEVELOPER PASS</div>
-                        </div>
-
-                        <div class="card-body">
-                            <div class="user-section">
-                                <div class="card-avatar-container">
-                                    <div class="card-avatar avatar-icon" id="cardAvatar"></div>
-                                    <div class="card-chip"></div>
-                                </div>
-                                <div class="user-details">
-                                    <div class="user-name" id="cardUserName">Learner</div>
-                                    <div class="user-level-badge" id="cardUserLevelBadge">Level 1</div>
-                                    <div class="user-title" id="cardUserTitle">Beginner</div>
-                                </div>
-                            </div>
-
-                            <div class="stats-section">
-                                <div class="stat-item">
-                                    <div class="stat-label">GLOBAL RANK</div>
-                                    <div class="stat-value" id="cardRank">#1</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-label">TOTAL XP</div>
-                                    <div class="stat-value" id="cardXP">0</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-label">DAY STREAK</div>
-                                    <div class="stat-value" id="cardStreak">0</div>
-                                </div>
-                            </div>
-
-                            <div class="footer-section">
-                                <div class="skills-area">
-                                    <div class="section-label">TOP SKILLS</div>
-                                    <div class="skills-list" id="cardSkills">
-                                        <span class="skill-pill">General</span>
-                                    </div>
-                                </div>
-                                <div class="qr-area">
-                                    <div id="cardQrCode" class="qr-code"></div>
-                                    <div class="qr-label">SCAN PROFILE</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card-download-actions">
-                    <button type="button" id="downloadPngBtn" class="btn"><i class="fas fa-file-image"></i> Export PNG</button>
-                    <button type="button" id="downloadPdfBtn" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Export PDF</button>
-                </div>
-            </section>
-
-            <!-- Leaderboard -->
-            <aside class="profile-leaderboard">
-                <div class="section-header">
-                    <h3><i class="fas fa-trophy"></i> Leaderboard</h3>
-                </div>
-                <div class="leaderboard-list" id="profileLeaderboardList">
-                    <!-- Populated by modules/profile.js -->
-                </div>
-            </aside>
-
+      <!-- Profile header -->
+      <header class="profile-hero">
+        <!-- Avatar -->
+        <div class="profile-avatar-wrapper">
+          <div class="profile-avatar-large" id="profileAvatarWrapper">
+            <img
+              id="profileAvatarImage"
+              class="avatar-preview"
+              alt="Profile avatar"
+              style="display: none"
+            />
+            <span class="avatar-icon" id="profileAvatarEmoji"></span>
+          </div>
+          <button
+            type="button"
+            class="avatar-upload-overlay"
+            id="avatarUploadOverlay"
+            aria-controls="avatarFileInput"
+            title="Change avatar"
+          >
+            <i class="fas fa-camera"></i>
+          </button>
+          <input
+            type="file"
+            id="avatarFileInput"
+            class="avatar-file-input"
+            accept="image/*"
+            aria-label="Upload profile picture"
+          />
         </div>
 
-        <!-- Solved Algorithms -->
-        <section class="solved-section">
-            <div class="section-header">
-                <h2><i class="fas fa-check-circle"></i> Solved Algorithms</h2>
-                <div class="stats-counter">
-                    <span id="solvedCount">0</span> problems
+        <!-- Info -->
+        <div class="profile-info-group">
+          <h1 id="userName">Learner</h1>
+          <p class="profile-level-text" id="userLevel">Level 1 &mdash; Beginner</p>
+
+          <!-- XP progress -->
+          <div class="profile-xp-bar">
+            <div class="xp-bar-track">
+              <div class="xp-bar-fill" id="profileProgressBar"></div>
+            </div>
+            <span class="xp-bar-label" id="profileLevelProgress">0%</span>
+          </div>
+
+          <!-- Stats -->
+          <div class="profile-stats-row">
+            <div class="profile-stat">
+              <span class="stat-value" id="userStreak">0</span>
+              <span class="stat-label">Streak</span>
+            </div>
+            <div class="profile-stat">
+              <span class="stat-value" id="userXP">0</span>
+              <span class="stat-label">XP</span>
+            </div>
+            <div class="profile-stat">
+              <span class="stat-value" id="profileProblems">0</span>
+              <span class="stat-label">Problems</span>
+            </div>
+            <div class="profile-stat">
+              <span class="stat-value" id="profileBadges">0</span>
+              <span class="stat-label">Badges</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Edit -->
+        <button
+          class="profile-edit-btn"
+          id="profilePageEditBtn"
+          title="Edit Profile"
+          aria-label="Edit Profile"
+        >
+          <i class="fas fa-pen"></i>
+        </button>
+
+        <a
+          href="/pages/team-profile/index.html"
+          class="profile-edit-btn"
+          title="Shared Team Profile"
+          aria-label="Shared Team Profile"
+        >
+          <i class="fas fa-users"></i>
+        </a>
+      </header>
+
+      <!-- Languages -->
+      <section class="profile-languages-section">
+        <span class="section-label">Languages</span>
+        <button
+          type="button"
+          class="lang-edit-btn"
+          id="languagesEditBtn"
+          title="Edit Languages"
+          aria-label="Edit Languages"
+        >
+          <i class="fas fa-pen"></i> Edit
+        </button>
+        <div id="profileLanguages" class="languages-list">
+          <!-- Populated by profile-edit.js -->
+        </div>
+      </section>
+
+      <!-- Two-column: identity card + leaderboard -->
+      <div class="profile-split">
+        <!-- Identity Card -->
+        <section class="identity-card-section">
+          <div class="section-header">
+            <h2><i class="fas fa-id-card"></i> Coding Identity Card</h2>
+          </div>
+
+          <div class="theme-selector-container">
+            <button type="button" class="theme-btn active" data-theme="cyberpunk">Cyberpunk</button>
+            <button type="button" class="theme-btn" data-theme="cosmic">Cosmic</button>
+            <button type="button" class="theme-btn" data-theme="obsidian">Obsidian</button>
+            <button type="button" class="theme-btn" data-theme="emerald">Emerald</button>
+          </div>
+
+          <div class="card-display-container">
+            <div id="codingIdentityCard" class="coding-card theme-cyberpunk">
+              <div class="card-glow"></div>
+              <div class="card-grid"></div>
+
+              <div class="card-header">
+                <div class="logo-area">
+                  <span class="logo-icon">&infin;</span>
+                  <span class="logo-text">ALGO INFINITY</span>
                 </div>
-            </div>
+                <div class="card-type">DEVELOPER PASS</div>
+              </div>
 
-            <div class="controls-bar">
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="searchSolved" placeholder="Search solved problems..." autocomplete="off">
+              <div class="card-body">
+                <div class="user-section">
+                  <div class="card-avatar-container">
+                    <div class="card-avatar avatar-icon" id="cardAvatar"></div>
+                    <div class="card-chip"></div>
+                  </div>
+                  <div class="user-details">
+                    <div class="user-name" id="cardUserName">Learner</div>
+                    <div class="user-level-badge" id="cardUserLevelBadge">Level 1</div>
+                    <div class="user-title" id="cardUserTitle">Beginner</div>
+                  </div>
                 </div>
-                <div class="filter-box">
-                    <select id="difficultyFilter">
-                        <option value="all">All Difficulties</option>
-                        <option value="Easy">Easy</option>
-                        <option value="Medium">Medium</option>
-                        <option value="Hard">Hard</option>
-                    </select>
+
+                <div class="stats-section">
+                  <div class="stat-item">
+                    <div class="stat-label">GLOBAL RANK</div>
+                    <div class="stat-value" id="cardRank">#1</div>
+                  </div>
+                  <div class="stat-item">
+                    <div class="stat-label">TOTAL XP</div>
+                    <div class="stat-value" id="cardXP">0</div>
+                  </div>
+                  <div class="stat-item">
+                    <div class="stat-label">DAY STREAK</div>
+                    <div class="stat-value" id="cardStreak">0</div>
+                  </div>
                 </div>
-            </div>
 
-            <!-- Grid -->
-            <div id="solvedGrid" class="solved-grid">
-                <!-- Populated by JS -->
+                <div class="footer-section">
+                  <div class="skills-area">
+                    <div class="section-label">TOP SKILLS</div>
+                    <div class="skills-list" id="cardSkills">
+                      <span class="skill-pill">General</span>
+                    </div>
+                  </div>
+                  <div class="qr-area">
+                    <div id="cardQrCode" class="qr-code"></div>
+                    <div class="qr-label">SCAN PROFILE</div>
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
 
-            <!-- Empty state -->
-            <div id="emptyState" class="empty-state hidden">
-                <i class="fas fa-ghost"></i>
-                <h3>No algorithms solved yet</h3>
-                <p>Start practicing to fill up your profile.</p>
-                <a href="../../pages/practice/problems.html" class="btn">Start Practicing</a>
-            </div>
-
-            <!-- Pagination -->
-            <div class="pagination-controls hidden" id="profilePagination">
-                <button type="button" class="pagination-btn" id="prevPageBtn" disabled><i class="fas fa-chevron-left"></i> Prev</button>
-                <span class="pagination-info" id="pageInfo">Page 1 of 1</span>
-                <button type="button" class="pagination-btn" id="nextPageBtn">Next <i class="fas fa-chevron-right"></i></button>
-            </div>
+          <div class="card-download-actions">
+            <button type="button" id="downloadPngBtn" class="btn">
+              <i class="fas fa-file-image"></i> Export PNG
+            </button>
+            <button type="button" id="downloadPdfBtn" class="btn btn-primary">
+              <i class="fas fa-file-pdf"></i> Export PDF
+            </button>
+          </div>
         </section>
 
+        <!-- Leaderboard -->
+        <aside class="profile-leaderboard">
+          <div class="section-header">
+            <h3><i class="fas fa-trophy"></i> Leaderboard</h3>
+          </div>
+          <div class="leaderboard-list" id="profileLeaderboardList">
+            <!-- Populated by modules/profile.js -->
+          </div>
+        </aside>
+      </div>
+
+      <!-- Solved Algorithms -->
+      <section class="solved-section">
+        <div class="section-header">
+          <h2><i class="fas fa-check-circle"></i> Solved Algorithms</h2>
+          <div class="stats-counter"><span id="solvedCount">0</span> problems</div>
+        </div>
+
+        <div class="controls-bar">
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input
+              type="text"
+              id="searchSolved"
+              placeholder="Search solved problems..."
+              autocomplete="off"
+            />
+          </div>
+          <div class="filter-box">
+            <select id="difficultyFilter">
+              <option value="all">All Difficulties</option>
+              <option value="Easy">Easy</option>
+              <option value="Medium">Medium</option>
+              <option value="Hard">Hard</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Grid -->
+        <div id="solvedGrid" class="solved-grid">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Empty state -->
+        <div id="emptyState" class="empty-state hidden">
+          <i class="fas fa-ghost"></i>
+          <h3>No algorithms solved yet</h3>
+          <p>Start practicing to fill up your profile.</p>
+          <a href="../../pages/practice/problems.html" class="btn">Start Practicing</a>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-controls hidden" id="profilePagination">
+          <button type="button" class="pagination-btn" id="prevPageBtn" disabled>
+            <i class="fas fa-chevron-left"></i> Prev
+          </button>
+          <span class="pagination-info" id="pageInfo">Page 1 of 1</span>
+          <button type="button" class="pagination-btn" id="nextPageBtn">
+            Next <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </section>
     </main>
 
     <!-- Profile Edit Modal -->
@@ -272,7 +303,8 @@
       <div class="modal-content profile-edit-modal">
         <div class="modal-header">
           <h3>Edit Profile</h3>
-          <button type="button"
+          <button
+            type="button"
             class="modal-close"
             id="profileModalClose"
             aria-label="Close edit profile modal"
@@ -338,10 +370,10 @@
           </div>
         </div>
         <div class="modal-footer">
-<button type="button" class="btn" id="profileCancelBtn">Cancel</button>
-           <button type="button" class="btn btn-primary" id="profileSaveBtn">
-             <i class="fas fa-save"></i> Save Changes
-           </button>
+          <button type="button" class="btn" id="profileCancelBtn">Cancel</button>
+          <button type="button" class="btn btn-primary" id="profileSaveBtn">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
         </div>
       </div>
     </div>
@@ -369,25 +401,25 @@
     <script src="profile.js"></script>
 
     <script>
-      if(typeof loadPartial === 'function') {
-          loadPartial("navbar-placeholder", "../../partials/navbar.html").then(function() {
-              if (typeof initNavbar === "function") initNavbar();
-          });
+      if (typeof loadPartial === 'function') {
+        loadPartial('navbar-placeholder', '../../partials/navbar.html').then(function () {
+          if (typeof initNavbar === 'function') initNavbar();
+        });
       }
 
-      document.addEventListener('DOMContentLoaded', function() {
-          var backBtn = document.getElementById('profileBackBtn');
-          if (backBtn) {
-              backBtn.addEventListener('click', function(e) {
-                  e.preventDefault();
-                  if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) {
-                      window.history.back();
-                  } else {
-                      window.location.href = '/index.html#dashboard';
-                  }
-              });
-          }
+      document.addEventListener('DOMContentLoaded', function () {
+        var backBtn = document.getElementById('profileBackBtn');
+        if (backBtn) {
+          backBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) {
+              window.history.back();
+            } else {
+              window.location.href = '/index.html#dashboard';
+            }
+          });
+        }
       });
     </script>
-</body>
+  </body>
 </html>
