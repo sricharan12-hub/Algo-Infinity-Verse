@@ -1,7 +1,7 @@
 import { initLoadingScreen } from './loading.js';
 import { initNavbar } from './navbar.js';
 import { initHeroSection } from './hero.js';
-import { initTopicOfTheDay, initTopicsSection } from './topics.js';
+import { initTopicOfTheDay } from './topics.js';
 import { initQuizSection } from './quiz-game.js';
 
 import { initRoadmap } from './roadmap.js';
@@ -25,6 +25,8 @@ import { initEditor } from './editor.js';
 import { initMistakeDna } from './mistake-dna.js';
 import { initPersonalityQuiz } from './personality-quiz.js';
 import { initBookmarkCollections } from './bookmarkUI.js';
+import { initRevisionDuePopup } from './revisionDuePopup.js';
+import { initStoreModal } from './xpStore.js';
 
 function loadUserData() {
   if (typeof window.loadUserData === 'function') {
@@ -101,7 +103,6 @@ function initializeApp() {
   initNavbar();
   initHeroSection();
   initTopicOfTheDay();
-  initTopicsSection();
   initQuizSection();
 
   initRoadmap();
@@ -128,6 +129,8 @@ function initializeApp() {
   initEditor();
   initMistakeDna();
   initPersonalityQuiz();
+  initRevisionDuePopup();
+  initStoreModal();
 }
 
 if (window.partialsLoadedFlag) {

@@ -54,6 +54,13 @@ const visualizers = [
     desc: 'Visualize time complexity growth rates across different algorithms.',
   },
   {
+    name: 'Algorithmic Complexity Sandbox',
+    path: '/pages/visualizers/complexity-analyzer/index.html',
+    category: 'Sorting & Searching',
+    icon: 'fa-gauge-high',
+    desc: 'Profile and compare execution runtimes and memory curves for two custom solutions side by side.',
+  },
+  {
     name: 'Binary Search Visualizer',
     path: '/pages/learning/binary-search/binary-search.html',
     category: 'Sorting & Searching',
@@ -166,6 +173,13 @@ const visualizers = [
     category: 'Trees & BSTs',
     icon: 'fa-book',
     desc: 'Visualize binomial heap merge and extract-min operations.',
+  },
+  {
+  name: 'Interval Tree Visualizer',
+  path: '/pages/visualizers/interval-tree/interval-tree.html',
+  category: 'Data Structures',
+  icon: 'fa-ruler-horizontal',
+  desc: 'Augmented BST storing intervals — max-endpoint pruning, overlap queries, and calendar conflict detection in O(log n + k).',
   },
 
   // ── Graph Algorithms ──
@@ -431,6 +445,8 @@ const visualizers = [
     category: 'Systems & OS',
     icon: 'fa-database',
     desc: 'Visualize ARIES database recovery: Analysis, Redo, and Undo phases.',
+  },
+  {
     name: 'Spanning Tree Protocol (STP)',
     path: '/pages/visualizers/stp-simulator/stp-simulator.html',
     category: 'Systems & OS',
@@ -503,6 +519,13 @@ const visualizers = [
     category: 'Distributed Systems',
     icon: 'fa-shield-halved',
     desc: 'Practical Byzantine Fault Tolerance consensus visualized.',
+  },
+  {
+    name: 'Load Balancer Visualizer',
+    path: '/pages/visualizers/load-balancer-visualizer/load-balancer-visualizer.html',
+    category: 'Distributed Systems',
+    icon: 'fa-network-wired',
+    desc: 'Visualize real-time traffic distribution across backend servers using diverse algorithms, with failure simulations.',
   },
   {
     name: 'Consistent Hashing Visualizer',
@@ -862,6 +885,20 @@ const visualizers = [
     icon: 'fa-table-cells',
     desc: 'Guaranteed O(1) worst-case lookup via two tables and eviction chains.',
   },
+  {
+    name: 'LSH Visualizer',
+    path: '/pages/visualizers/lsh-visualizer/lsh-visualizer.html',
+    category: 'Algorithms',
+    icon: 'fa-fingerprint',
+    desc: 'Locality-Sensitive Hashing — MinHash signatures, banding, and approximate nearest-neighbor search without comparing all pairs.',
+  },
+  {
+    name: 'Rope Data Structure Visualizer',
+    path: '/pages/visualizers/rope-data-structure-visualizer/rope-data-structure-visualizer.html',
+    category: 'Data Structures',
+    icon: 'fa-align-left',
+    desc: 'How VS Code and Google Docs edit huge documents in O(log n) — split, concat, and weight-guided indexing.',
+  },
 
   // ── Special & Creative ──
   {
@@ -996,6 +1033,34 @@ const visualizers = [
     category: 'Special',
     icon: 'fa-eye',
     desc: 'Spectre side-channel attack — speculative execution visualized.',
+  },
+  {
+    name: 'DNS Resolution Simulator',
+    path: '/pages/visualizers/dns-simulator/dns-simulator.html',
+    category: 'Systems & OS',
+    icon: 'fa-globe',
+    desc: 'Interactive simulator tracing recursive DNS queries.',
+  },
+  {
+    name: 'Consistent Hashing Visualizer',
+    path: '/pages/visualizers/consistent-hashing-simulator/consistent-hashing-simulator.html',
+    category: 'Systems & OS',
+    icon: 'fa-server',
+    desc: 'Interactive hash ring showing node distribution and key routing.',
+  },
+  {
+    name: 'gRPC & HTTP/2 Multiplexing Visualizer',
+    path: '/pages/visualizers/grpc-simulator/grpc-simulator.html',
+    category: 'Architecture',
+    icon: 'fa-network-wired',
+    desc: 'Compare HTTP/1.1 REST to HTTP/2 multiplexed streams and Protocol Buffers.',
+  },
+  {
+    name: 'WebRTC Signaling & ICE Simulator',
+    path: '/pages/visualizers/webrtc-simulator/webrtc-simulator.html',
+    category: 'Systems & OS',
+    icon: 'fa-tower-broadcast',
+    desc: 'Visualize Peer-to-Peer connections, STUN hole-punching, and TURN relays.',
   },
 ];
 
