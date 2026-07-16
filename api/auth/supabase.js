@@ -12,7 +12,7 @@
  * @requires ../server.js
  */
 
-import { requestHandler } from '../server.js';
+import { requestHandler } from '../../server.js';
 
 /**
  * Vercel serverless function configuration.
