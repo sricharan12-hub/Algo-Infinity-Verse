@@ -29,20 +29,27 @@ function saveProfileChanges() {
   const selectedBorder = document.querySelector('input[name="avatarBorder"]:checked');
   const selectedTheme = document.querySelector('input[name="avatarTheme"]:checked');
 
-  const progress = loadProgress();
-  progress.name = nameVal;
-  progress.languages = userLangs;
-  if (!progress.avatarCustomization) progress.avatarCustomization = { border: 'none', theme: 'default' };
-  if (selectedBorder) progress.avatarCustomization.border = selectedBorder.value;
-  if (selectedTheme) progress.avatarCustomization.theme = selectedTheme.value;
-  saveProgress(progress);
-  if (typeof window.saveUserData === 'function') window.saveUserData();
-  if (typeof window.userProgress !== 'undefined') {
-    window.userProgress.name = nameVal;
-    window.userProgress.languages = userLangs;
-    if (!window.userProgress.avatarCustomization) window.userProgress.avatarCustomization = { border: 'none', theme: 'default' };
-    if (selectedBorder) window.userProgress.avatarCustomization.border = selectedBorder.value;
-    if (selectedTheme) window.userProgress.avatarCustomization.theme = selectedTheme.value;
+  const applyUpdates = (target) => {
+    target.name = nameVal;
+    target.languages = userLangs;
+    if (!target.avatarCustomization) target.avatarCustomization = { border: 'none', theme: 'default' };
+    if (selectedBorder) target.avatarCustomization.border = selectedBorder.value;
+    if (selectedTheme) target.avatarCustomization.theme = selectedTheme.value;
+  };
+
+  if (typeof window !== 'undefined' && window.userProgress) {
+    applyUpdates(window.userProgress);
+  }
+
+  if (typeof window !== 'undefined' && typeof window.saveUserData === 'function') {
+    window.saveUserData();
+  } else {
+    // Fallback when script.js's saveUserData isn't available: persist
+    // directly via the same localStorage read/merge/write helpers this
+    // module already uses.
+    const progress = loadProgress();
+    applyUpdates(progress);
+    saveProgress(progress);
   }
   updateProfileViews();
   closeProfileModal();
@@ -131,9 +138,13 @@ function openProfileModal() {
 export function initProfileEdit() {
   setupProfileListeners();
 }
-window.initProfileEdit = initProfileEdit;
-window.closeProfileModal = closeProfileModal;
-window.saveProfileChanges = saveProfileChanges;
-window.renderLanguageChips = renderLanguageChips;
-window.updateProfileViews = updateProfileViews;
-window.openProfileModal = openProfileModal;
+
+export { saveProfileChanges, loadProgress };
+if (typeof window !== 'undefined') {
+  window.initProfileEdit = initProfileEdit;
+  window.closeProfileModal = closeProfileModal;
+  window.saveProfileChanges = saveProfileChanges;
+  window.renderLanguageChips = renderLanguageChips;
+  window.updateProfileViews = updateProfileViews;
+  window.openProfileModal = openProfileModal;
+}
