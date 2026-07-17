@@ -1796,19 +1796,19 @@ if (localStorage.getItem('algoInfinityVerse')) {
       if (!userProgress.dailyGoals) userProgress.dailyGoals = {};
       if (!userProgress.spacedRepetition) userProgress.spacedRepetition = {};
       if (userProgress.reviewStreak === undefined) userProgress.reviewStreak = 0;
-      if (!userProgress.inventory)
-        userProgress.inventory = {
-          streakFreezes: 0,
-          hintTokens: 0,
-          xpBoosters: 0,
-          exclusiveBadge: false,
-          avatarPacks: [],
-        };
-      if (!userProgress.avatarCustomization)
-        userProgress.avatarCustomization = {
-          border: 'none',
-          theme: 'default',
-        };
+      userProgress.inventory = {
+        streakFreezes: 0,
+        hintTokens: 0,
+        xpBoosters: 0,
+        exclusiveBadge: false,
+        avatarPacks: [],
+        ...(userProgress.inventory || {}),
+      };
+      userProgress.avatarCustomization = {
+        border: 'none',
+        theme: 'default',
+        ...(userProgress.avatarCustomization || {}),
+      };
 
       if (loaded.quizScores)
         userProgress.quizScores = { ...(userProgress.quizScores || {}), ...loaded.quizScores };
