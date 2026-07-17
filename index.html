@@ -306,20 +306,20 @@
       <div class="loader-container">
         <div class="infinity-wrapper">
           <svg class="infinity-svg" viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
-            <path class="infinity-path"
-                  d="M100,80 C70,15 30,15 30,80 C30,145 70,145 100,80 C130,145 170,145 170,80 C170,15 130,15 100,80" />
+            <path
+              class="infinity-path"
+              d="M100,80 C70,15 30,15 30,80 C30,145 70,145 100,80 C130,145 170,145 170,80 C170,15 130,15 100,80"
+            />
           </svg>
         </div>
-        <h1 class="site-name">
-          <span class="typed-text"></span><span class="cursor">|</span>
-        </h1>
+        <h1 class="site-name"><span class="typed-text"></span><span class="cursor">|</span></h1>
         <p class="tagline">Loading the universe of algorithms...</p>
       </div>
     </div>
 
     <!-- 🚀 Start loading animation IMMEDIATELY — before any other scripts block! -->
     <script>
-      (function() {
+      (function () {
         if (window.__loadingStarted) return;
         var ls = document.getElementById('loading-screen');
         if (!ls || typeof gsap === 'undefined') return;
@@ -338,15 +338,18 @@
 
         // Typewriter
         var tInterval;
-        (function() {
+        (function () {
           var txt = 'Algo Infinity Verse';
           var idx = 0;
           typed.textContent = '';
-          tInterval = setInterval(function() {
+          tInterval = setInterval(function () {
             if (idx < txt.length) {
               typed.textContent += txt.charAt(idx);
               idx++;
-            } else { clearInterval(tInterval); tInterval = null; }
+            } else {
+              clearInterval(tInterval);
+              tInterval = null;
+            }
           }, 110);
         })();
 
@@ -355,10 +358,13 @@
         gsap.set(path, { strokeDasharray: len, strokeDashoffset: len });
 
         var tl = gsap.timeline({
-          onComplete: function() {
-            if (tInterval) { clearInterval(tInterval); tInterval = null; }
+          onComplete: function () {
+            if (tInterval) {
+              clearInterval(tInterval);
+              tInterval = null;
+            }
             ls.style.display = 'none';
-          }
+          },
         });
 
         ls.classList.add('animating');
@@ -557,12 +563,14 @@
       <!-- Topic of the Day Section -->
       <div id="topic-of-the-day-placeholder"></div>
 
+      <!-- Practice Problems Section -->
+      <div id="practice-placeholder"></div>
+
       <!-- DSA Flashcards Revision Section -->
       <div id="flashcards-placeholder"></div>
 
       <!-- Quiz Section -->
       <div id="quiz-placeholder"></div>
-
 
       <!-- Dashboard Section -->
 
@@ -969,6 +977,7 @@
           loadPartial('navbar-placeholder', '/partials/navbar.html'),
           loadPartial('hero-placeholder', '/partials/hero.html'),
           loadPartial('topic-of-the-day-placeholder', '/partials/topic-of-the-day.html'),
+          loadPartial('practice-placeholder', '/partials/practice.html'),
           loadPartial('flashcards-placeholder', '/partials/flashcards.html'),
           loadPartial('quiz-placeholder', '/partials/quiz.html'),
           loadPartial('did-you-know-placeholder', '/partials/did-you-know.html'),

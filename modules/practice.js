@@ -174,14 +174,16 @@ function getFilteredProblems() {
     );
   }
   if (currentFilter !== 'all') {
-    if (currentFilter === 'favorites') filtered = filtered.filter(p => userProgress.favoriteProblems?.includes(p.id));
-    else filtered = filtered.filter(p => p.difficulty === currentFilter);
+    if (currentFilter === 'favorites')
+      filtered = filtered.filter((p) => userProgress.favoriteProblems?.includes(p.id));
+    else filtered = filtered.filter((p) => p.difficulty === currentFilter);
   }
   // Topic filter
   if (currentTopic !== 'all') {
-    filtered = filtered.filter(p =>
-      p.category === currentTopic ||
-      p.tags?.some(tag => tag.toLowerCase().includes(currentTopic.toLowerCase()))
+    filtered = filtered.filter(
+      (p) =>
+        p.category === currentTopic ||
+        p.tags?.some((tag) => tag.toLowerCase().includes(currentTopic.toLowerCase()))
     );
   }
   return filtered;
@@ -267,8 +269,12 @@ function renderProblemCardHtml(problem) {
   const recBadge = isRec
     ? `<span class="rec-personality-badge"><i class="fas fa-brain"></i> ${recLabel}</span>`
     : '';
-  const isCompleted = userProgress.completedProblems.includes(problem.id);
-  const isFavorite = userProgress.favoriteProblems.includes(problem.id);
+  const isCompleted =
+    Array.isArray(userProgress.completedProblems) &&
+    userProgress.completedProblems.includes(problem.id);
+  const isFavorite =
+    Array.isArray(userProgress.favoriteProblems) &&
+    userProgress.favoriteProblems.includes(problem.id);
   const hasNotes = userProgress.problemNotes && userProgress.problemNotes[problem.id];
   const collectionChooser = renderCollectionChooser(problem.id);
 

@@ -1,4 +1,4 @@
-import { initLoadingScreen } from './loading.js';
+import './loading.js';
 // (Animation already started by the inline script in index.html —
 //  this import is kept for the export chain; the guard in splash.js
 //  makes initLoadingScreen() a no-op when called from here.)
@@ -7,6 +7,7 @@ import { initNavbar } from './navbar.js';
 import { initHeroSection } from './hero.js';
 import { initTopicOfTheDay } from './topics.js';
 import { initQuizSection } from './quiz-game.js';
+import { initPracticeSection } from './practice.js';
 
 import { initRoadmap } from './roadmap.js';
 import { initDashboard } from './dashboard.js';
@@ -72,10 +73,15 @@ function initDateDisplay() {
 
   const now = new Date();
   const shortDate = now.toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric'
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
   });
   const fullDate = now.toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   });
 
   if (currentDateEl) currentDateEl.textContent = `📅 ${shortDate}`;
@@ -106,6 +112,7 @@ function initializeApp() {
   initNavbar();
   initHeroSection();
   initTopicOfTheDay();
+  initPracticeSection();
   initQuizSection();
 
   initRoadmap();
