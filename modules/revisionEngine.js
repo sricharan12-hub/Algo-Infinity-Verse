@@ -13,11 +13,13 @@ export class RevisionEngine {
    *
    * @param {Object} currentSchedule - { currentStage, history }
    * @param {Object} options - { scorePercentage, isIncorrect, isSkip, difficulty }
-   * @param {Object} config - { passThreshold, perfectThreshold, markCompleteAfterLast, maxStages }
+   * @param {Object} config - { passThreshold, markCompleteAfterLast, maxStages }
    * @returns {Object} { nextStage, intervalDays, nextReviewDate, isComplete, message }
    */
   calculateNext(currentSchedule = {}, options = {}, config = {}) {
     const stage = Number(currentSchedule.currentStage || 0);
+    const revisionVersion = Number(currentSchedule.revisionVersion || 0) + 1;
+    const updatedAt = new Date().toISOString();
     const {
       scorePercentage = 100,
       isIncorrect = false,
@@ -27,7 +29,6 @@ export class RevisionEngine {
 
     //  Configuration with defaults
     const passThreshold = config?.passThreshold || 60;
-    const perfectThreshold = config?.perfectThreshold || 90;
     const markCompleteAfterLast = config?.markCompleteAfterLast !== false;
     const maxStages = config?.maxStages || this.intervals.length;
 
@@ -53,6 +54,8 @@ export class RevisionEngine {
         intervalDays: 1,
         nextReviewDate: nextDate.toISOString(),
         isComplete: false,
+        revisionVersion,
+        updatedAt,
         message: ` Score ${scorePercentage}% below ${passThreshold}%, resetting to stage 0`,
       };
     }
@@ -90,30 +93,8 @@ export class RevisionEngine {
       }
     }
 
-    //  PERFECT SCORE: Fast track - skip ahead!
-    if (scorePercentage >= perfectThreshold) {
-      const skipAhead = Math.floor((scorePercentage - perfectThreshold) / 10) + 1;
-      const nextStage = Math.min(stage + skipAhead, maxStages - 1);
-      const baseInterval = this.intervals[nextStage] || 1;
-
-      const nextDate = new Date();
-      nextDate.setDate(nextDate.getDate() + baseInterval);
-
-      const isComplete = nextStage >= maxStages - 1 && markCompleteAfterLast;
-
-      return {
-        nextStage: nextStage,
-        intervalDays: baseInterval,
-        nextReviewDate: nextDate.toISOString(),
-        isComplete: isComplete,
-        message: isComplete
-          ? " Perfect score! You've completed all stages!"
-          : ` Excellent! Skipping to stage ${nextStage + 1} (skipped ${skipAhead} stages)`,
-        skippedStages: nextStage - stage - 1,
-      };
-    }
-
-    //  Normal progression: Move to next stage
+    //  Normal progression: Move to next stage (perfect scores use the same
+    //  single-step progression below, boosted by the 1.5x score multiplier)
     const nextStage = Math.min(stage + 1, maxStages - 1);
     let baseInterval = this.intervals[nextStage] || 1;
 
@@ -149,6 +130,8 @@ export class RevisionEngine {
       intervalDays,
       nextReviewDate: nextDate.toISOString(),
       isComplete: isComplete,
+      revisionVersion,
+      updatedAt,
       message: isComplete
         ? "All stages complete! You're done! "
         : ` Moving to stage ${nextStage + 1} of ${maxStages} (${Math.round(((nextStage + 1) / maxStages) * 100)}% complete)`,
@@ -159,12 +142,32 @@ export class RevisionEngine {
    * Reset revision progress for a topic
    * @returns {Object} Reset schedule
    */
-  resetProgress() {
-    return {
-      currentStage: 0,
-      history: [],
-      isComplete: false,
-    };
+  /**
+   * Conflict-free merge strategy for offline/multi-tab schedules.
+   * Prevents stale offline updates from resetting higher verified stages
+   * unless accompanied by explicit low recall rating or newer version timestamp.
+   *
+   * @param {Object} existingSchedule
+   * @param {Object} incomingSchedule
+   * @returns {Object} Merged schedule
+   */
+  mergeSchedules(existingSchedule = {}, incomingSchedule = {}) {
+    if (!existingSchedule || !existingSchedule.updatedAt) return incomingSchedule;
+    if (!incomingSchedule || !incomingSchedule.updatedAt) return existingSchedule;
+
+    const existingTime = new Date(existingSchedule.updatedAt).getTime() || 0;
+    const incomingTime = new Date(incomingSchedule.updatedAt).getTime() || 0;
+
+    if (incomingTime < existingTime) {
+      if (
+        (incomingSchedule.currentStage || 0) < (existingSchedule.currentStage || 0) &&
+        !incomingSchedule.isIncorrect
+      ) {
+        return existingSchedule;
+      }
+    }
+
+    return incomingTime >= existingTime ? incomingSchedule : existingSchedule;
   }
 }
 

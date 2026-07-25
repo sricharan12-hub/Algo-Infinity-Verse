@@ -1,15 +1,49 @@
 import { renderBookmarkCollectionsPanel } from './bookmarkUI.js';
 
+const AVATAR_THEMES = {
+  default: null,
+  ocean: ['#0ea5e9', '#06b6d4', '#14b8a6', '#3b82f6', '#0284c7'],
+  sunset: ['#f97316', '#ef4444', '#ec4899', '#f59e0b', '#e11d48'],
+  midnight: ['#7c3aed', '#6d28d9', '#4f46e5', '#4338ca', '#312e81'],
+  forest: ['#10b981', '#059669', '#047857', '#16a34a', '#15803d'],
+  royal: ['#a855f7', '#7c3aed', '#f59e0b', '#d946ef', '#8b5cf6'],
+};
+
+const AVATAR_BORDER_STYLES = {
+  none: '',
+  gold: '3px solid #f59e0b',
+  'premium-glow': '3px solid #8b5cf6',
+  rainbow: '3px solid transparent',
+  'neon-cyan': '3px solid #06b6d4',
+  'neon-pink': '3px solid #ec4899',
+};
+
+function getAvatarThemeBg(theme, initial) {
+  if (!theme || theme === 'default') return null;
+  const palette = AVATAR_THEMES[theme];
+  if (!palette) return null;
+  const index = (initial.charCodeAt(0) - 65) % palette.length;
+  return palette[index >= 0 ? index : 0];
+}
+
 function renderProfileAvatar(el, av) {
   if (!el) return;
+  const userProgress = window.userProgress || {};
+  const customization = userProgress.avatarCustomization || { border: 'none', theme: 'default' };
+
   if (typeof av === 'string' && av.startsWith('data:image')) {
-    el.innerHTML = `<img src="${av}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    const borderStyle = AVATAR_BORDER_STYLES[customization.border] || '';
+    el.innerHTML = `<span style="display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;overflow:hidden;${borderStyle ? 'border:' + borderStyle + ';' : ''}"><img src="${av}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"></span>`;
     el.style.fontSize = '0';
     return;
   }
   const initial = (av && av.initial) ? av.initial : 'L';
-  const bg = (av && av.bg) ? av.bg : '#7c3aed';
-  el.innerHTML = `<span style="display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;background:${bg};color:#fff;font-size:1.3rem;font-weight:600;font-family:'Poppins',sans-serif;">${initial}</span>`;
+  const themeBg = getAvatarThemeBg(customization.theme, initial);
+  const bg = themeBg || ((av && av.bg) ? av.bg : '#7c3aed');
+  const borderStyle = AVATAR_BORDER_STYLES[customization.border] || '';
+  const borderCss = borderStyle ? `border:${borderStyle};` : '';
+  const extraClass = customization.border === 'rainbow' ? ' avatar-border-rainbow' : '';
+  el.innerHTML = `<span class="avatar-inner${extraClass}" style="display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;background:${bg};color:#fff;font-size:1.3rem;font-weight:600;font-family:'Poppins',sans-serif;${borderCss}">${initial}</span>`;
   el.style.fontSize = '0';
 }
 
@@ -65,7 +99,6 @@ if (profileBio) {
 }
 
   updateProfile();
-  updateProfileLeaderboard();
   renderBookmarkCollectionsPanel();
 
   // Render language chips if available
@@ -145,6 +178,9 @@ export function updateProfile() {
     completedCount >= 50,
     completedCount >= 100,
     completedCount >= 25 && (userProgress.xp || 0) >= 2500,
+    (userProgress.battlesWon || 0) >= 1,
+    (userProgress.battlesWon || 0) >= 5,
+    !!(userProgress.inventory?.exclusiveBadge),
   ].filter(Boolean).length;
 
   const profileBadges = document.getElementById('profileBadges');
@@ -342,129 +378,5 @@ function updateLevelProgress() {
   if (progressLabelSection) progressLabelSection.textContent = Math.round(progressPercent) + '%';
 }
 
-function updateProfileLeaderboard() {
-  const profileLeaderboardList = document.getElementById('profileLeaderboardList');
-  if (!profileLeaderboardList) return;
-
-  // Show loading state
-  profileLeaderboardList.innerHTML = '<p class="empty-state">Loading leaderboard...</p>';
-
-  // Try to fetch leaderboard data
-  if (location.protocol === 'file:') {
-    renderProfileLeaderboardFallback(profileLeaderboardList);
-    return;
-  }
-
-  const apiCache = window.apiCache;
-  const apiAbort = window.apiAbort;
-
-  if (!apiCache || !apiAbort) {
-    renderProfileLeaderboardFallback(profileLeaderboardList);
-    return;
-  }
-
-  const signal = apiAbort.getSignal('profileLeaderboard');
-  apiCache
-    .fetchWithCache('/api/leaderboard', { credentials: 'include', signal }, 300000, 'json')
-    .then(({ leaders, currentUserId }) => {
-      apiAbort.clearSignal('profileLeaderboard');
-      renderProfileLeaderboardRows(profileLeaderboardList, leaders || [], currentUserId);
-    })
-    .catch((err) => {
-      apiAbort.clearSignal('profileLeaderboard');
-      if (err.name === 'AbortError') return;
-      void 0;
-      renderProfileLeaderboardFallback(profileLeaderboardList);
-    });
-}
-
-function renderProfileLeaderboardFallback(container) {
-  const userProgress = window.userProgress || {};
-
-  const mockLeaderboard = [
-    { id: 'bot-1', name: 'CodeNinja', xp: 12450, level: 5, avatar: 'C', rank: 1 },
-    { id: 'bot-2', name: 'AlgoMaster', xp: 9800, level: 4, avatar: 'A', rank: 2 },
-    { id: 'bot-3', name: 'ByteWizard', xp: 7200, level: 4, avatar: 'B', rank: 3 },
-    { id: 'bot-4', name: 'DevHero', xp: 5100, level: 3, avatar: 'D', rank: 4 },
-    { id: 'bot-5', name: 'PixelForge', xp: 3600, level: 3, avatar: 'P', rank: 5 },
-    {
-      id: 'local-user',
-      name: userProgress.name || 'Learner',
-      xp: userProgress.xp || 0,
-      level: userProgress.level || 1,
-      avatar: userProgress.avatar || '🚀',
-      rank: 6,
-    },
-  ];
-
-  renderProfileLeaderboardEntries(container, mockLeaderboard, 'local-user');
-}
-
-function renderProfileLeaderboardRows(container, leaders, currentUserId) {
-  const userProgress = window.userProgress || {};
-  const resolvedUserId =
-    currentUserId || window.algoAuth?.user?.sub || window.algoAuth?.user?.id || 'local-user';
-
-  const rowsById = new Map();
-  leaders.forEach((leader) => {
-    const normalized = {
-      id: String(leader.id || ''),
-      name: String(leader.name || 'Learner'),
-      xp: Math.max(0, Number(leader.xp) || 0),
-      level: Math.max(1, Number(leader.level) || 1),
-      avatar: String(leader.avatar || '🚀'),
-    };
-    if (normalized.id) rowsById.set(normalized.id, normalized);
-  });
-
-  // Include current user
-  const currentEntry = {
-    id: resolvedUserId,
-    name: userProgress.name || 'Learner',
-    xp: userProgress.xp || 0,
-    level: userProgress.level || 1,
-    avatar: userProgress.avatar || '🚀',
-  };
-  rowsById.set(currentEntry.id, currentEntry);
-
-  const ranked = Array.from(rowsById.values())
-    .sort((a, b) => b.xp - a.xp || a.name.localeCompare(b.name))
-    .map((leader, index) => ({ ...leader, rank: index + 1 }));
-
-  const visible = ranked.slice(0, 10);
-  if (!visible.some((l) => l.id === currentEntry.id)) {
-    const currentRow = ranked.find((l) => l.id === currentEntry.id);
-    if (currentRow) visible[visible.length - 1] = currentRow;
-  }
-
-  renderProfileLeaderboardEntries(container, visible, resolvedUserId);
-}
-
-function renderProfileLeaderboardEntries(container, rows, currentUserId) {
-  if (!rows.length) {
-    container.innerHTML = '<p class="empty-state">No leaderboard data yet.</p>';
-    return;
-  }
-
-  function esc(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  container.innerHTML = rows
-    .map((user) => {
-      const isCurrentUser =
-        user.id === currentUserId || (currentUserId === 'local-user' && user.id === 'local-user');
-      const displayName = isCurrentUser ? `${user.name} (You)` : user.name;
-      return `<div class="leaderboard-item ${isCurrentUser ? 'current-user' : ''}">
-      <span class="leader-rank">#${user.rank}</span>
-      <span class="leader-avatar" aria-hidden="true">${esc(user.avatar)}</span>
-      <span class="leader-name">${esc(displayName)}</span>
-      <span class="leader-xp">${user.xp.toLocaleString()} XP</span>
-    </div>`;
-    })
-    .join('');
-}
 // Legacy global exports
 window.updateProfile = updateProfile;

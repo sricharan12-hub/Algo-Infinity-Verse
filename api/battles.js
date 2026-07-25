@@ -1,28 +1,10 @@
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { initializeFirebase } from '../firebase.js';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { SESSION_COOKIE, verifySessionToken, parseCookies } from '../backend/utils/sessionToken.js';
 
 // ─── Firebase init ────────────────────────────────────────────────────────────
-let db = null;
-
-function initFirebase() {
-  if (getApps().length > 0) {
-    db = getFirestore();
-    return;
-  }
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-  if (!projectId || !clientEmail || !privateKey) return;
-  try {
-    initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
-    db = getFirestore();
-  } catch (e) {
-    console.error('Firebase init error:', e);
-  }
-}
-
-initFirebase();
+const db = initializeFirebase();
+const useFirestore = !!db;
 
 function getDb() {
   if (!db) throw new Error('Firestore not available. Check FIREBASE_* env vars.');
@@ -41,6 +23,10 @@ const PROBLEMS = 'problems';
 const USERS = 'users';
 const BATTLE_DURATION_MS = 300 * 1000;
 const XP_BY_DIFFICULTY = { Easy: 50, Medium: 100, Hard: 150 };
+
+export const battleCache = new Map();
+const CACHE_TTL = 1000; // 1 second for active/waiting
+const FINAL_CACHE_TTL = 10 * 60 * 1000; // 10 minutes for completed/expired
 
 // ─── Route handlers ───────────────────────────────────────────────────────────
 
@@ -108,6 +94,7 @@ async function createBattle(req, res, user) {
     expiresAt: null,
   });
 
+  battleCache.delete(battleRef.id);
   return res.status(201).json({ battleId: battleRef.id });
 }
 
@@ -144,6 +131,18 @@ async function getHistory(req, res, user) {
 
 // GET /api/battles/:id — get single battle
 async function getBattle(req, res, user, battleId) {
+  const now = Date.now();
+  const cached = battleCache.get(battleId);
+  if (cached) {
+    const isExpired = now - cached.timestamp > cached.ttl;
+    if (!isExpired) {
+      const timeRemainingMs = cached.data.expiresAt
+        ? Math.max(0, cached.data.expiresAt.toMillis() - now)
+        : null;
+      return res.status(200).json({ ...cached.data, id: battleId, timeRemainingMs });
+    }
+  }
+
   const firestore = getDb();
   const doc = await firestore.collection(BATTLES).doc(battleId).get();
 
@@ -161,11 +160,19 @@ async function getBattle(req, res, user, battleId) {
     battle.status = 'expired';
   }
 
-  const timeRemainingMs = battle.expiresAt
-    ? Math.max(0, battle.expiresAt.toMillis() - Date.now())
-    : null;
+  const timeRemainingMs = battle.expiresAt ? Math.max(0, battle.expiresAt.toMillis() - now) : null;
 
-  return res.status(200).json({ id: doc.id, ...battle, timeRemainingMs });
+  const resolved = { id: doc.id, ...battle, timeRemainingMs };
+
+  const isFinal = battle.status === 'completed' || battle.status === 'expired';
+  const ttl = isFinal ? FINAL_CACHE_TTL : CACHE_TTL;
+  battleCache.set(battleId, {
+    data: { ...battle, expiresAt: battle.expiresAt },
+    timestamp: now,
+    ttl,
+  });
+
+  return res.status(200).json(resolved);
 }
 
 // POST /api/battles/:id/join — join a pending battle
@@ -193,6 +200,7 @@ async function joinBattle(req, res, user, battleId) {
       tx.update(battleRef, { status: 'active', startedAt, expiresAt });
     });
 
+    battleCache.delete(battleId);
     return res.status(200).json({ joined: true });
   } catch (err) {
     return res.status(400).json({ error: err.message });
@@ -250,6 +258,22 @@ async function submitSolution(req, res, user, battleId) {
 
       return { winner: user.sub, xpAwarded: xp };
     });
+
+    battleCache.delete(battleId);
+
+    // Trigger leaderboard update in the background
+    (async () => {
+      try {
+        const userDoc = await firestore.collection(USERS).doc(user.sub).get();
+        if (userDoc.exists) {
+          const userXp = Number(userDoc.data().totalXp || userDoc.data().xp || 0);
+          const { enqueueLeaderboardUpdate } = await import('../backend/jobs/queue.js');
+          await enqueueLeaderboardUpdate(user.sub, userXp);
+        }
+      } catch (e) {
+        console.error('[LEADERBOARD] Failed to update user XP in Redis:', e);
+      }
+    })();
 
     return res.status(200).json(result);
   } catch (err) {

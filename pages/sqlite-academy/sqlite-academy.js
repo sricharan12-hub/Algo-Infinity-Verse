@@ -336,8 +336,12 @@ function loadLesson(mIndex, lIndex) {
     markLessonComplete(lesson.id);
   }
 
-  elements.lessonContent.innerHTML = lesson.content;
+  elements.lessonContent.innerHTML = (window.eli5Toggle ? window.eli5Toggle.wrapContent(lesson.content, '') : lesson.content);
+  if (window.eli5Toggle) {
+    window.eli5Toggle.initToggle('sqlite', elements.lessonContent);
+  }
   elements.sqlEditor.value = lesson.defaultCode || '';
+  copyCode.init(elements.lessonContent);
 
   renderQuiz(mIndex);
   renderSidebar();

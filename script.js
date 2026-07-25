@@ -1,4 +1,4 @@
-/* global handleActiveNav, initPracticeSection, initProfile, initAiInterviewer, initNewsletterValidation, initFooterCurrentDate, updateProfile, closeTopicModal, saveProblemNotes, closeNotesModal, closeQuizEditor, closeQuizModal, openTopicModal, openQuizModal, renderQuizQuestion, handleProblemClick, escapeHtml, renderPersonalityCard, renderMistakeDnaCard, apiAbort, apiCache, getEditorDraft, getEditorDraftSignature, getProblemSignature, clearEditorDraft, updateEditorDisplayMode, toggleOutputPanel, updateLineNumbers, syncScroll, switchQuizTab, genCppHarness, genJavaHarness, genCHarness, genSwiftHarness, parseTestResults, setOutput, getXPForDifficulty, initializeQuizEditor, closeShortcutModal, initIdentityCard, renderProblems, updatePaginationControls, initDarkMode */
+/* global handleActiveNav, initPracticeSection, initProfile, initAiInterviewer, initNewsletterValidation, initFooterCurrentDate, closeTopicModal, saveProblemNotes, closeNotesModal, closeQuizEditor, closeQuizModal, openTopicModal, openQuizModal, renderQuizQuestion, handleProblemClick, escapeHtml, apiAbort, apiCache, getEditorDraft, getEditorDraftSignature, getProblemSignature, clearEditorDraft, updateEditorDisplayMode, toggleOutputPanel, updateLineNumbers, syncScroll, switchQuizTab, genCppHarness, genJavaHarness, genCHarness, genSwiftHarness, parseTestResults, setOutput, getXPForDifficulty, initializeQuizEditor, closeShortcutModal, renderProblems, updatePaginationControls, initDarkMode */
 
 // Nuke all caches on every page load — ensures fresh content always
 (async function nukeCaches() {
@@ -620,6 +620,42 @@ const quizQuestions = {
       correct: 1,
       explanation: 'Edit distance computes minimum insertions, deletions, substitutions.',
     },
+  ],
+  stack: [
+    { id: 'stack-1', question: 'Which principle does a stack follow?', options: ['FIFO (First In, First Out)', 'LIFO (Last In, First Out)', 'Random access', 'Priority-based ordering'], correct: 1, explanation: 'Stacks follow LIFO: the last element pushed is the first one popped.' },
+    { id: 'stack-2', question: 'What is the time complexity of push and pop operations on a stack implemented with a dynamic array?', options: ['O(n) for both', 'O(1) amortized for both', 'O(log n) for push, O(1) for pop', 'O(1) for push, O(n) for pop'], correct: 1, explanation: 'Dynamic array push is O(1) amortized and pop is O(1) since elements are removed from the end.' },
+    { id: 'stack-3', question: 'What is the primary use case of a stack in recursive function calls?', options: ['Storing return values only', 'Managing the call stack with activation records', 'Parallelizing recursive calls', 'Replacing recursion with iteration'], correct: 1, explanation: 'Each recursive call pushes an activation record onto the call stack, storing local variables and return addresses.' },
+    { id: 'stack-4', question: 'Which classic problem is best solved using a stack to match opening and closing delimiters?', options: ['Longest Common Subsequence', 'Balanced Parentheses', 'Shortest Path', 'Merge Sort'], correct: 1, explanation: 'A stack tracks unmatched opening brackets; each closing bracket pops the matching opener.' },
+    { id: 'stack-5', question: 'What does a monotonic stack help efficiently find for each element in an array?', options: ['The smallest element in the array', 'The next greater or smaller element', 'The median of the array', 'The longest increasing subsequence'], correct: 1, explanation: 'Monotonic stacks maintain a sorted order to find next greater/smaller element in O(n) total time.' },
+    { id: 'stack-6', question: 'Which expression notation does a stack naturally evaluate?', options: ['Infix notation', 'Prefix notation only', 'Reverse Polish Notation (postfix)', 'Infix with parentheses'], correct: 2, explanation: 'Postfix expressions are evaluated left to right using a stack: push operands, pop and compute on operators.' },
+    { id: 'stack-7', question: 'What happens when you pop from an empty stack?', options: ['Returns null', 'Returns 0', 'Throws an underflow error', 'Adds a default element'], correct: 2, explanation: 'Popping from an empty stack causes a stack underflow, which is typically an error condition.' },
+    { id: 'stack-8', question: 'Which data structure combination is used to implement a stack that supports getMin() in O(1)?', options: ['A stack and a queue', 'Two stacks', 'A stack and a hash map', 'A stack and a linked list'], correct: 1, explanation: 'A second auxiliary stack tracks the minimum: push/pop mirrors the main stack, keeping the current min on top.' },
+    { id: 'stack-9', question: 'What is the time complexity of reversing the first k elements of a queue using a stack?', options: ['O(1)', 'O(k)', 'O(n)', 'O(n log n)'], correct: 1, explanation: 'Push k elements onto a stack (O(k)), then pop them back to the queue front, re-enqueue remaining n-k elements.' },
+    { id: 'stack-10', question: 'How is DFS (Depth-First Search) on a graph typically implemented iteratively?', options: ['Using a queue', 'Using a stack', 'Using a priority queue', 'Using recursion only'], correct: 1, explanation: 'Iterative DFS uses an explicit stack to simulate the recursive call stack.' },
+  ],
+  queue: [
+    { id: 'queue-1', question: 'Which principle does a queue follow?', options: ['LIFO (Last In, First Out)', 'FIFO (First In, First Out)', 'Random access', 'Priority-based ordering'], correct: 1, explanation: 'Queues follow FIFO: the first element enqueued is the first one dequeued.' },
+    { id: 'queue-2', question: 'What is the time complexity of enqueue and dequeue operations on a linked-list-based queue?', options: ['O(n) for both', 'O(1) for both', 'O(1) enqueue, O(n) dequeue', 'O(n) enqueue, O(1) dequeue'], correct: 1, explanation: 'Both operations modify only the head or tail pointer, making them O(1).' },
+    { id: 'queue-3', question: 'Which graph traversal algorithm uses a queue as its core data structure?', options: ['Depth-First Search (DFS)', 'Breadth-First Search (BFS)', "Dijkstra's Algorithm", 'Topological Sort (DFS-based)'], correct: 1, explanation: 'BFS explores nodes level by level, using a queue to visit nodes in FIFO order.' },
+    { id: 'queue-4', question: 'What problem does a circular buffer solve for array-based queues?', options: ['It allows O(1) search', 'It reuses space after dequeue operations to prevent wasted slots', 'It enables random access', 'It supports priority ordering'], correct: 1, explanation: 'A circular buffer wraps indices around, reclaiming dequeued space without shifting elements.' },
+    { id: 'queue-5', question: 'What is a deque (double-ended queue)?', options: ['A queue with priority ordering', 'A queue allowing insertions and deletions at both ends', 'A queue that only supports dequeue', 'A queue with a fixed capacity'], correct: 1, explanation: 'A deque supports O(1) insertion and deletion at both the front and rear ends.' },
+    { id: 'queue-6', question: 'Which real-world scheduling model does a simple FIFO queue best represent?', options: ['Round-robin scheduling', 'First-come, first-served scheduling', 'Priority-based scheduling', 'Shortest job first'], correct: 1, explanation: 'FCFS scheduling processes tasks in the order they arrive, exactly like a FIFO queue.' },
+    { id: 'queue-7', question: 'What is the time complexity of reversing a queue using recursion?', options: ['O(1)', 'O(log n)', 'O(n)', 'O(n^2)'], correct: 2, explanation: 'Reversing a queue recursively dequeues all n elements, then inserts each at the front, taking O(n) total.' },
+    { id: 'queue-8', question: 'How does a priority queue differ from a simple FIFO queue?', options: ['It has O(1) operations', 'It dequeues elements based on priority, not arrival order', 'It only supports enqueue', 'It uses a linked list exclusively'], correct: 1, explanation: 'A priority queue dequeues the highest-priority element first, regardless of insertion order.' },
+    { id: 'queue-9', question: 'Which operation is NOT typically supported by a standard queue ADT?', options: ['enqueue', 'dequeue', 'peek (front element)', 'insert at arbitrary index'], correct: 3, explanation: 'A standard queue only allows access at the front and rear; inserting in the middle violates FIFO.' },
+    { id: 'queue-10', question: 'Which data structure is used to implement a thread pool task scheduler?', options: ['A stack', 'A queue', 'A binary search tree', 'A hash set'], correct: 1, explanation: 'Task schedulers use a queue to ensure tasks are processed in the order they were submitted.' },
+  ],
+  recursion: [
+    { id: 'recursion-1', question: "What is a 'base case' in a recursive function?", options: ['The first line of the function', 'The condition that stops the recursion', 'The largest input the function handles', 'The initial call that starts recursion'], correct: 1, explanation: 'A base case defines the condition under which the function returns a value without making another recursive call, preventing infinite recursion.' },
+    { id: 'recursion-2', question: 'What happens when a recursive function has no base case?', options: ['The function returns null', 'It causes a stack overflow error', 'The compiler adds one automatically', 'The function runs faster'], correct: 1, explanation: 'Without a base case, the function calls itself indefinitely, consuming all available call stack memory until a stack overflow occurs.' },
+    { id: 'recursion-3', question: 'Which data structure does the system use to manage function calls during recursion?', options: ['Queue', 'Heap', 'Stack', 'Hash Map'], correct: 2, explanation: 'The call stack is a LIFO (stack) data structure that stores activation records for each function call, including local variables and return addresses.' },
+    { id: 'recursion-4', question: 'What is tail recursion?', options: ['Recursion that processes the tail of a list', 'When the recursive call is the last operation in the function', 'Recursion with only one base case', 'A recursive function with no return value'], correct: 1, explanation: 'In tail recursion, the recursive call is the final operation before returning, allowing compilers to optimize by reusing the current stack frame.' },
+    { id: 'recursion-5', question: 'What is the time complexity of naive recursive Fibonacci without memoization?', options: ['O(n)', 'O(n log n)', 'O(2^n)', 'O(n^2)'], correct: 2, explanation: 'Naive Fibonacci makes two recursive calls per invocation, creating an exponential call tree with roughly 2^n total calls.' },
+    { id: 'recursion-6', question: 'What is a recursion tree used for?', options: ['Storing recursive results in a tree data structure', 'Visualizing the hierarchy of recursive calls and their costs', 'Converting recursion to iteration', 'Measuring stack memory usage'], correct: 1, explanation: 'A recursion tree diagrams each recursive call as a node, helping analyze time complexity and identify overlapping subproblems.' },
+    { id: 'recursion-7', question: 'Which technique caches results of expensive recursive calls to avoid redundant computation?', options: ['Divide and conquer', 'Dynamic programming tabulation', 'Memoization', 'Greedy optimization'], correct: 2, explanation: 'Memoization stores previously computed results in a cache (like a hash map or array) so each unique subproblem is solved only once.' },
+    { id: 'recursion-8', question: 'What is the space complexity of a recursive function with maximum call depth n?', options: ['O(1)', 'O(log n)', 'O(n)', 'O(2^n)'], correct: 2, explanation: 'Each recursive call adds a frame to the call stack. With maximum depth n, the space used is O(n) for the stack frames.' },
+    { id: 'recursion-9', question: 'Which sorting algorithm is a classic example of the divide-and-conquer recursive paradigm?', options: ['Bubble Sort', 'Insertion Sort', 'Merge Sort', 'Selection Sort'], correct: 2, explanation: 'Merge Sort recursively divides the array in half, sorts each half, then merges the sorted halves — a textbook divide-and-conquer approach.' },
+    { id: 'recursion-10', question: "What does 'backtracking' in recursion involve?", options: ['Returning the final answer immediately', 'Exploring all possibilities and undoing choices that lead to dead ends', 'Converting recursive code to iterative loops', 'Storing all results in a hash map'], correct: 1, explanation: 'Backtracking explores each branch recursively, and when a dead end is reached, it undoes the last choice (backtracks) to try the next option.' },
   ],
 };
 
@@ -1746,6 +1782,17 @@ let userProgress = {
   streak: 0,
   freezes: 0,
   freezeHistory: [],
+  inventory: {
+    streakFreezes: 0,
+    hintTokens: 0,
+    xpBoosters: 0,
+    exclusiveBadge: false,
+    avatarPacks: [],
+  },
+  avatarCustomization: {
+    border: 'none',
+    theme: 'default',
+  },
   badges: [],
   completedRoadmapSteps: [],
   lastActive: null,
@@ -1785,6 +1832,19 @@ if (localStorage.getItem('algoInfinityVerse')) {
       if (!userProgress.dailyGoals) userProgress.dailyGoals = {};
       if (!userProgress.spacedRepetition) userProgress.spacedRepetition = {};
       if (userProgress.reviewStreak === undefined) userProgress.reviewStreak = 0;
+      userProgress.inventory = {
+        streakFreezes: 0,
+        hintTokens: 0,
+        xpBoosters: 0,
+        exclusiveBadge: false,
+        avatarPacks: [],
+        ...(userProgress.inventory || {}),
+      };
+      userProgress.avatarCustomization = {
+        border: 'none',
+        theme: 'default',
+        ...(userProgress.avatarCustomization || {}),
+      };
 
       if (loaded.quizScores)
         userProgress.quizScores = { ...(userProgress.quizScores || {}), ...loaded.quizScores };
@@ -2125,19 +2185,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // New Topic Quiz Modal close handlers
-  const topicQuizCloseBtn = document.getElementById('topicQuizModalClose');
-  if (topicQuizCloseBtn) {
-    topicQuizCloseBtn.addEventListener('click', closeQuizModal);
-  }
-
-  const topicQuizModal = document.getElementById('quizModal');
-  if (topicQuizModal) {
-    topicQuizModal.addEventListener('click', (e) => {
-      if (e.target === topicQuizModal) {
-        closeQuizModal();
-      }
-    });
-  }
+  // Topic quiz modal is now a full page at /pages/topic-quiz/topic-quiz.html
+  // Legacy modal listeners removed.
 });
 
 // ===== LOADING SCREEN =====
@@ -2272,13 +2321,12 @@ function initNavbar() {
     });
   });
 
-
-
   window.addEventListener('resize', () => {
     if (!isMobile()) {
       if (navLinks.classList.contains('active')) {
         toggleMenu(false);
       }
+    } else {
       document.querySelectorAll('.has-dropdown.open').forEach((el) => {
         el.classList.remove('open');
       });
@@ -2417,21 +2465,37 @@ function initTopicOfTheDay() {
   const totdIcon = document.getElementById('totdIcon');
   if (!totdIcon) return;
 
-  totdIcon.textContent = topic.icon;
-  document.getElementById('totdTitle').textContent = topic.name;
-  document.getElementById('totdDesc').textContent = topic.description;
+  const topicIcons = {
+    'Arrays': 'fa-layer-group',
+    'Strings': 'fa-font',
+    'Linked List': 'fa-link',
+    'Trees': 'fa-tree',
+    'Graphs': 'fa-project-diagram',
+    'Dynamic Programming': 'fa-puzzle-piece',
+    'Heaps': 'fa-chart-bar',
+  };
+  totdIcon.textContent = '';
+  const icon = document.createElement('i');
+  icon.className = `fas ${topicIcons[topic.name] || 'fa-book'}`;
+  icon.style.fontSize = '2.5rem';
+  totdIcon.appendChild(icon);
+  const totdTitle = document.getElementById('totdTitle');
+  if (totdTitle) totdTitle.textContent = topic.name;
+  const totdDesc = document.getElementById('totdDesc');
+  if (totdDesc) totdDesc.textContent = topic.description;
 
   const diffEl = document.getElementById('totdDifficulty');
-  diffEl.textContent = topic.difficulty;
-  diffEl.className = `totd-difficulty difficulty-badge ${getDifficultyClass(topic.difficulty)}`;
+  if (diffEl) {
+    diffEl.textContent = topic.difficulty;
+    diffEl.className = `totd-difficulty difficulty-badge ${getDifficultyClass(topic.difficulty)}`;
+  }
 
   const progress = getTopicProgress(topic.name);
-  document.getElementById('totdProblems').textContent =
-    `${progress.completed}/${progress.total} solved`;
+  const totdProblems = document.getElementById('totdProblems');
+  if (totdProblems) totdProblems.textContent = `${progress.completed}/${progress.total} solved`;
 
-  document.getElementById('totdBtn').addEventListener('click', () => {
-    openTopicModal(topic);
-  });
+  const totdBtn = document.getElementById('totdBtn');
+  if (totdBtn) totdBtn.addEventListener('click', () => openTopicModal(topic));
 }
 
 function initTopicsSection() {
@@ -2519,6 +2583,12 @@ function getQuizTopicKey(topic) {
       graphs: 'graphs',
       'dynamic programming': 'dp',
       dp: 'dp',
+      heaps: 'heaps',
+      stacks: 'stack',
+      stack: 'stack',
+      queues: 'queue',
+      queue: 'queue',
+      recursion: 'recursion',
     };
     return map[normalize(key)] || null;
   };
@@ -2537,6 +2607,8 @@ function getQuizTopicKey(topic) {
     trees: 'trees',
     graphs: 'graphs',
     'dynamic programming': 'dp',
+    stacks: 'stack',
+    queues: 'queue',
   };
 
   return keyMap[name] || toKnownKey(name) || null;
@@ -3396,7 +3468,7 @@ function submitRoadmapQuiz(stepIndex, type = 'basic') {
 // ============================================
 function initDashboard() {
   updateDashboard();
-  updateProfile();
+  if (typeof updateProfile === 'function') updateProfile();
 }
 
 function renderRevisionSchedulerCard() {
@@ -3483,45 +3555,13 @@ function renderRevisionSchedulerCard() {
 }
 
 function updateDashboard() {
-  const completedProblemsEl = document.getElementById('completedProblems');
-  if (completedProblemsEl) completedProblemsEl.textContent = userProgress.completedProblems.length;
-  const currentStreakEl = document.getElementById('currentStreak');
-  if (currentStreakEl) currentStreakEl.textContent = userProgress.streak;
-  const currentFreezes = document.getElementById('currentFreezes');
-  if (currentFreezes) currentFreezes.textContent = userProgress.freezes || 0;
-  const totalXPEl = document.getElementById('totalXP');
-  if (totalXPEl) totalXPEl.textContent = userProgress.xp;
   updateCurrentDate();
   updateActivityList();
   renderActivityHeatmap();
   if (typeof updateFreezeHistoryList === 'function') updateFreezeHistoryList();
   updateBadges();
   updateRecentProblems();
-  updateLeaderboard();
   renderRevisionSchedulerCard();
-  const grid = document.querySelector('.dashboard-grid');
-  if (grid && !document.getElementById('personalityCard')) {
-    const pCard = document.createElement('div');
-    pCard.className = 'dashboard-card personality-card';
-    pCard.id = 'personalityCard';
-    const profileCard = grid.querySelector('.profile-card');
-    if (profileCard) profileCard.after(pCard);
-    else grid.prepend(pCard);
-  }
-  renderPersonalityCard();
-  if (grid && !document.getElementById('mistakeDnaCard')) {
-    const mCard = document.createElement('div');
-    mCard.className = 'dashboard-card mistake-dna-card';
-    mCard.id = 'mistakeDnaCard';
-    const personalityCard = document.getElementById('personalityCard');
-    if (personalityCard) personalityCard.after(mCard);
-    else {
-      const profileCard = grid.querySelector('.profile-card');
-      if (profileCard) profileCard.after(mCard);
-      else grid.prepend(mCard);
-    }
-  }
-  renderMistakeDnaCard();
 }
 
 function updateCurrentDate() {
@@ -3603,51 +3643,93 @@ function updateBadges() {
   const badges = [
     {
       id: 1,
-      icon: '🌟',
+      icon: '<i class="fas fa-star"></i>',
       name: 'First Steps',
       description: 'Begin your journey',
       criteria: 'Solve 1 problem',
+      color: '#f59e0b',
+      anim: 'badge-hover-spin',
       earned: userProgress.completedProblems.length >= 1,
     },
     {
       id: 2,
-      icon: '🔥',
+      icon: '<i class="fas fa-fire"></i>',
       name: 'On Fire',
       description: 'Keep the momentum going',
       criteria: 'Maintain a 7-day streak',
+      color: '#ef4444',
+      anim: 'badge-hover-pulse',
       earned: userProgress.streak >= 7,
     },
     {
       id: 3,
-      icon: '💎',
+      icon: '<i class="fas fa-gem"></i>',
       name: 'Diamond',
       description: 'Reach a major XP milestone',
       criteria: 'Earn 5,000 XP',
+      color: '#8b5cf6',
+      anim: 'badge-hover-float',
       earned: userProgress.xp >= 5000,
     },
     {
       id: 4,
-      icon: '🚀',
+      icon: '<i class="fas fa-rocket"></i>',
       name: 'Rocket',
       description: 'Speed through problems',
       criteria: 'Solve 50 problems',
+      color: '#06b6d4',
+      anim: 'badge-hover-bounce',
       earned: userProgress.completedProblems.length >= 50,
     },
     {
       id: 5,
-      icon: '👑',
+      icon: '<i class="fas fa-crown"></i>',
       name: 'Master',
       description: 'Achieve expert problem-solving',
       criteria: 'Solve 100 problems',
+      color: '#ec4899',
+      anim: 'badge-hover-glow',
       earned: userProgress.completedProblems.length >= 100,
     },
     {
       id: 6,
-      icon: '🎯',
+      icon: '<i class="fas fa-bullseye"></i>',
       name: 'Sharpshooter',
       description: 'Hit the target with consistency',
       criteria: 'Solve 25 problems and earn 2,500 XP',
+      color: '#10b981',
+      anim: 'badge-hover-wobble',
       earned: userProgress.completedProblems.length >= 25 && userProgress.xp >= 2500,
+    },
+    {
+      id: 7,
+      icon: '<i class="fas fa-shield-alt"></i>',
+      name: 'Gladiator',
+      description: 'Win your first coding battle',
+      criteria: 'Win 1 battle',
+      color: '#f97316',
+      anim: 'badge-hover-shake',
+      earned: (userProgress.battlesWon || 0) >= 1,
+    },
+    {
+      id: 8,
+      icon: '<i class="fas fa-bolt"></i>',
+      name: 'Speed Demon',
+      description: 'Become a battle master',
+      criteria: 'Win 5 battles',
+      color: '#a855f7',
+      anim: 'badge-hover-flash',
+      earned: (userProgress.battlesWon || 0) >= 5,
+    },
+    {
+      id: 9,
+      icon: '<i class="fas fa-trophy"></i>',
+      name: 'Exclusive',
+      description: 'A mark of true dedication',
+      criteria: 'Purchased from the XP Store',
+      color: '#f59e0b',
+      anim: 'badge-hover-grow',
+      earned: !!userProgress.inventory?.exclusiveBadge,
     },
   ];
   const earned = badges.filter((b) => b.earned).map((b) => b.id);
@@ -3659,135 +3741,18 @@ function updateBadges() {
     container.innerHTML = badges
       .map(
         (badge) =>
-          `<div class="badge ${badge.earned ? '' : 'locked'}" tabindex="0"><span class="badge-tooltip"><strong>${badge.name}</strong><span>${badge.description}</span><span>${badge.criteria}</span></span>${badge.icon}</div>`
+          `<div class="badge ${badge.earned ? badge.anim : 'locked'}" tabindex="0" style="${badge.earned ? `background:${badge.color};box-shadow:0 4px 14px ${badge.color}40` : ''}"><span class="badge-tooltip"><strong>${badge.name}</strong><span>${badge.description}</span><span>${badge.criteria}</span></span>${badge.icon}</div>`
       )
       .join('');
   if (grid)
     grid.innerHTML = badges
       .map(
         (badge) =>
-          `<div class="badge-lg ${badge.earned ? '' : 'locked'}" tabindex="0"><span class="badge-tooltip"><strong>${badge.name}</strong><span>${badge.description}</span><span>${badge.criteria}</span></span>${badge.icon}</div>`
+          `<div class="badge-lg ${badge.earned ? badge.anim : 'locked'}" tabindex="0" style="${badge.earned ? `background:${badge.color};box-shadow:0 4px 14px ${badge.color}40` : ''}"><span class="badge-tooltip"><strong>${badge.name}</strong><span>${badge.description}</span><span>${badge.criteria}</span></span>${badge.icon}</div>`
       )
       .join('');
-}
-
-// ============================================
-// LEADERBOARD
-// ============================================
-let leaderboardRequestId = 0;
-const LEADERBOARD_LIMIT = 10;
-
-function updateLeaderboard() {
-  const leaderboardList = document.getElementById('leaderboardList');
-  if (!leaderboardList) return;
-  const requestId = ++leaderboardRequestId;
-  renderLeaderboardRows(buildLeaderboardRows([], getCurrentUserId()), getCurrentUserId(), {
-    emptyMessage: 'Loading leaderboard...',
-  });
-  loadLeaderboard()
-    .then(({ leaders, currentUserId }) => {
-      if (requestId !== leaderboardRequestId) return;
-      const resolvedCurrentUserId = currentUserId || getCurrentUserId();
-      renderLeaderboardRows(
-        buildLeaderboardRows(leaders, resolvedCurrentUserId),
-        resolvedCurrentUserId
-      );
-    })
-    .catch((error) => {
-      if (error.name === 'AbortError') return;
-      console.warn('Could not load leaderboard:', error);
-      if (requestId !== leaderboardRequestId) return;
-      renderLeaderboardRows(buildLeaderboardRows([], getCurrentUserId()), getCurrentUserId(), {
-        emptyMessage: 'Leaderboard unavailable.',
-      });
-    });
-}
-
-async function loadLeaderboard() {
-  if (location.protocol === 'file:') return { leaders: [], currentUserId: null };
-  const signal = apiAbort.getSignal('leaderboard');
-  try {
-    // Cache leaderboard data for 5 minutes (300000 ms) with stale-while-revalidate
-    return await apiCache.fetchWithCache(
-      '/api/leaderboard',
-      { credentials: 'include', signal },
-      300000,
-      'json'
-    );
-  } finally {
-    apiAbort.clearSignal('leaderboard');
-  }
-}
-
-function buildLeaderboardRows(leaders = [], currentUserId = getCurrentUserId()) {
-  const rowsById = new Map();
-  leaders.forEach((leader) => {
-    const normalized = normalizeLeaderboardEntry(leader);
-    if (normalized.id) rowsById.set(normalized.id, normalized);
-  });
-  const currentEntry = getCurrentLeaderboardEntry(currentUserId);
-  if (currentUserId !== 'local-user' || userProgress.xp > 350 || leaders.length === 0)
-    rowsById.set(currentEntry.id, currentEntry);
-  const rankedRows = Array.from(rowsById.values())
-    .sort((a, b) => b.xp - a.xp || a.name.localeCompare(b.name))
-    .map((leader, index) => ({ ...leader, rank: index + 1 }));
-  const visibleRows = rankedRows.slice(0, LEADERBOARD_LIMIT);
-  if (!visibleRows.some((leader) => leader.id === currentEntry.id)) {
-    const currentRow = rankedRows.find((leader) => leader.id === currentEntry.id);
-    if (currentRow) visibleRows[visibleRows.length - 1] = currentRow;
-  }
-  return visibleRows;
-}
-
-function normalizeLeaderboardEntry(entry) {
-  return {
-    id: String(entry.id || ''),
-    name: String(entry.name || 'Learner'),
-    xp: Math.max(0, Number(entry.xp) || 0),
-    level: Math.max(1, Number(entry.level) || 1),
-    avatar: String(entry.avatar || '🚀'),
-    rank: Number(entry.rank) || null,
-  };
-}
-
-function getCurrentLeaderboardEntry(currentUserId = getCurrentUserId()) {
-  return normalizeLeaderboardEntry({
-    id: currentUserId || 'local-user',
-    name: getCurrentDisplayName(),
-    xp: userProgress.xp,
-    level: userProgress.level,
-    avatar: userProgress.avatar,
-  });
-}
-
-function getCurrentUserId() {
-  return (
-    window.algoAuth?.user?.sub ||
-    window.algoAuth?.user?.id ||
-    cachedSession?.user?.sub ||
-    'local-user'
-  );
-}
-
-function getCurrentDisplayName() {
-  return window.algoAuth?.user?.name || cachedSession?.user?.name || userProgress.name || 'Learner';
-}
-
-function renderLeaderboardRows(rows, currentUserId = getCurrentUserId(), options = {}) {
-  const leaderboardList = document.getElementById('leaderboardList');
-  if (!leaderboardList) return;
-  if (!rows.length) {
-    leaderboardList.innerHTML = `<p class="empty-state">${options.emptyMessage || 'No leaderboard data yet.'}</p>`;
-    return;
-  }
-  leaderboardList.innerHTML = rows
-    .map((user) => {
-      const isCurrentUser =
-        user.id === currentUserId || (currentUserId === 'local-user' && user.id === 'local-user');
-      const displayName = isCurrentUser ? `${user.name} (You)` : user.name;
-      return `<div class="leaderboard-item ${isCurrentUser ? 'current-user' : ''}"><span class="leader-rank">#${user.rank}</span><span class="leader-avatar" aria-hidden="true">${escapeHtml(user.avatar)}</span><span class="leader-name">${escapeHtml(displayName)}</span><span class="leader-xp">${user.xp.toLocaleString()} XP</span></div>`;
-    })
-    .join('');
+  const earnedEl = document.getElementById('badgesEarnedCount');
+  if (earnedEl) earnedEl.textContent = `${earned.length} / ${badges.length} earned`;
 }
 
 // ============================================
@@ -3865,15 +3830,36 @@ function updateGamification() {
 }
 
 function showNotification(message, type = 'info') {
+  // Use ToastService if available (provides icon, close button, glassmorphism)
+  if (window.Toast && typeof window.Toast.show === 'function') {
+    window.Toast.show(message, type);
+    return;
+  }
+  // Fallback: dismiss any existing toasts first, then create a new one
+  document.querySelectorAll('.toast-notification').forEach(function(el) {
+    el.classList.remove('toast-visible');
+    if (el.parentNode) el.parentNode.removeChild(el);
+  });
+
   const notification = document.createElement('div');
-  notification.style.cssText = `position:fixed; top:100px; right:20px; padding:1rem 1.5rem; background:${type === 'success' ? 'var(--gradient-4)' : type === 'error' ? '#ef4444' : 'var(--primary)'}; color:${type === 'success' ? 'var(--dark-bg)' : 'white'}; border-radius:10px; box-shadow:var(--glass-shadow); z-index:10000; animation:slideIn 0.3s ease; font-weight:600; max-width:350px;`;
-  notification.textContent = message;
+  notification.className = `toast-notification toast-${type}`;
+
+  const iconEl = document.createElement('div');
+  iconEl.className = 'toast-icon';
+  const iconMap = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle' };
+  iconEl.innerHTML = `<i class="fas ${iconMap[type] || 'fa-info-circle'}"></i>`;
+  notification.appendChild(iconEl);
+
+  const msgEl = document.createElement('div');
+  msgEl.className = 'toast-message';
+  msgEl.textContent = message;
+  notification.appendChild(msgEl);
+
   document.body.appendChild(notification);
+  requestAnimationFrame(() => notification.classList.add('toast-visible'));
   setTimeout(() => {
-    notification.style.opacity = '0';
-    notification.style.transform = 'translateX(100%)';
-    notification.style.transition = 'all 0.3s ease';
-    setTimeout(() => notification.remove(), 300);
+    notification.classList.remove('toast-visible');
+    setTimeout(() => { if (notification.parentNode) notification.remove(); }, 300);
   }, 3000);
 }
 
@@ -4071,18 +4057,14 @@ function getBotResponse(question) {
 // ============================================
 function initScrollEffects() {
   const scrollTopBtn = document.getElementById('scrollTopBtn');
-  const backToTopBtn = document.getElementById('backToTopBtn');
   const setVisibleState = () => {
     const shouldShow = window.scrollY > 500;
     if (scrollTopBtn) scrollTopBtn.classList.toggle('visible', shouldShow);
-    if (backToTopBtn) backToTopBtn.classList.toggle('show', shouldShow);
   };
   window.addEventListener('scroll', setVisibleState);
   setVisibleState();
   if (scrollTopBtn)
     scrollTopBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
-  if (backToTopBtn)
-    backToTopBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -4210,7 +4192,6 @@ async function syncUserProgress() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    updateLeaderboard();
   } catch (e) {
     void 0;
   }
@@ -4371,15 +4352,15 @@ function loadUserData() {
     };
     saveUserData();
   }
-  updateProfile();
+  if (typeof updateProfile === 'function') updateProfile();
   getAuthenticatedSession().then((session) => {
     if (session?.user?.name) {
       userProgress.name = session.user.name;
-      updateProfile();
+      if (typeof updateProfile === 'function') updateProfile();
       saveUserData();
     } else {
       userProgress.name = 'Learner';
-      updateProfile();
+      if (typeof updateProfile === 'function') updateProfile();
       saveUserData();
     }
     if (typeof initProfile === 'function') initProfile();
@@ -4976,7 +4957,6 @@ window.addEventListener('online', async () => {
         }
       }
       await window.StorageDB.set(window.DB_STORES.SYNC_QUEUE, 'offlineSyncQueue', []);
-      if (typeof updateLeaderboard === 'function') updateLeaderboard();
     }
   }
 });
@@ -5442,6 +5422,42 @@ document.addEventListener('keydown', function (e) {
     window.location.href = '#dashboard';
   }
 
+  // Alt+S: Settings dropdown
+  if (e.altKey && e.key === 's') {
+    e.preventDefault();
+    const settingsParent = document.querySelector('.nav-settings-dropdown');
+    if (settingsParent) {
+      document.querySelectorAll('.has-dropdown.open').forEach(function (el) {
+        if (el !== settingsParent) {
+          el.classList.remove('open');
+          const btn = el.querySelector('.dropdown-toggle');
+          if (btn) btn.setAttribute('aria-expanded', 'false');
+        }
+      });
+      var isOpen = settingsParent.classList.toggle('open');
+      var toggle = settingsParent.querySelector('.dropdown-toggle');
+      if (toggle) toggle.setAttribute('aria-expanded', isOpen);
+    }
+  }
+
+  // Alt+L: Learn dropdown
+  if (e.altKey && e.key === 'l') {
+    e.preventDefault();
+    const learnParent = document.querySelector('.nav-learn-dropdown');
+    if (learnParent) {
+      document.querySelectorAll('.has-dropdown.open').forEach(function (el) {
+        if (el !== learnParent) {
+          el.classList.remove('open');
+          const btn = el.querySelector('.dropdown-toggle');
+          if (btn) btn.setAttribute('aria-expanded', 'false');
+        }
+      });
+      var isOpen = learnParent.classList.toggle('open');
+      var toggle = learnParent.querySelector('.dropdown-toggle');
+      if (toggle) toggle.setAttribute('aria-expanded', isOpen);
+    }
+  }
+
   // Escape: Close modal
   if (e.key === 'Escape') {
     closeShortcutModal();
@@ -5641,7 +5657,6 @@ document.addEventListener('keydown', function (e) {
 // ============================================
 // Handled by modules/profile-edit.js (initial-based avatars, language saving)
 // Legacy emoji-based IIFE removed.
-
 
 // Offline/Online status handler
 window.addEventListener('load', () => {
@@ -6219,3 +6234,26 @@ function updateProblemCount(filteredProblems) {
     countElement.textContent = `${total} problem${total !== 1 ? 's' : ''}`;
   }
 }
+
+// ============================================
+// BREADCRUMB SETUP
+// ============================================
+// Ensure the breadcrumb DOM element exists on every page so the
+// NavigationManager can attach to it — even on pages that don't load
+// the navbar partial (where the element normally lives).
+(function () {
+  if (!document.getElementById('dynamic-breadcrumbs')) {
+    const div = document.createElement('div');
+    div.id = 'dynamic-breadcrumbs';
+    div.className = 'breadcrumb-bar';
+    document.body.appendChild(div);
+  }
+
+  // Load navigationManager if not already present
+  if (!window.navManager) {
+    const s = document.createElement('script');
+    s.src = '/utils/navigationManager.js';
+    s.defer = true;
+    document.head.appendChild(s);
+  }
+})();
