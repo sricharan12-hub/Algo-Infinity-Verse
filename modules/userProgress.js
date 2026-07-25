@@ -288,7 +288,6 @@ async function syncUserProgress() {
         bookmarkCollections: userProgress.bookmarkCollections || [],
       }),
     });
-    if (typeof updateLeaderboard === 'function') updateLeaderboard();
   } catch (e) {
     void 0;
   }

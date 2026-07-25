@@ -94,6 +94,14 @@
       "destination": "/pages/roadmaps/roadmaps.html"
     },
     {
+      "source": "/leaderboard",
+      "destination": "/pages/leaderboard/leaderboard.html"
+    },
+    {
+      "source": "/leaderboard/preview",
+      "destination": "/pages/leaderboard/preview.html"
+    },
+    {
       "source": "/api/battles/:path*",
       "destination": "/api/battles"
     }

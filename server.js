@@ -14,16 +14,19 @@ import { validateEnv } from './utils/envValidator.js';
 import multer from 'multer';
 import { extractResumeText } from './backend/resume-analyzer/parser.js';
 import { calculateATS } from './backend/resume-analyzer/atsScore.js';
-import { findMissingSkills } from './backend/resume-analyzer/skills.js';
+import {
+  findMissingSkills,
+  detectTargetRole,
+  mapSkillsToRoadmapTopics,
+} from './backend/resume-analyzer/skills.js';
 import { getSuggestions } from './backend/resume-analyzer/suggestions.js';
-import { analyzeWorkflow } from './backend/repository-analyzer/cicdValidator.js';
+import { analyzeRepository } from './backend/repository-analyzer/repoAnalyzer.js';
 import { VCSFactory } from './backend/vcs/VCSFactory.js';
 import {
   enqueueBulkAudit,
   getBatchProgress,
   MAX_BULK_AUDIT_URLS,
   getReportStatus,
-  enqueueLeaderboardUpdate,
 } from './backend/jobs/queue.js';
 import './backend/jobs/worker.js'; // Initialize worker
 
@@ -138,9 +141,6 @@ const DELETION_LOG_FILE = path.join(DATA_DIR, 'account-deletions.json');
 const protectedPaths = new Set([
   '/community',
   '/community.html',
-  '/support-page',
-  '/support-page/',
-  '/support-page/index.html',
 ]);
 
 const mimeTypes = {
@@ -212,16 +212,13 @@ function authCookies(accessToken, refreshToken, req) {
   // HTTPS. Always require it in production regardless of that header (#2358).
   const secure =
     process.env.NODE_ENV === 'production' || req.headers['x-forwarded-proto'] === 'https';
-  // Use SameSite=None so the refresh cookie is sent on cross-site fetches
-  // (e.g. preview deployments) while remaining HttpOnly.
   const cookie = (name, value, maxAge) =>
     [
       `${name}=${encodeURIComponent(value)}`,
       'HttpOnly',
-      'SameSite=None',
+      'SameSite=Lax',
       'Path=/',
       `Max-Age=${maxAge}`,
-      // SameSite=None requires Secure in modern browsers.
       secure ? 'Secure' : '',
     ]
       .filter(Boolean)
@@ -859,11 +856,15 @@ async function handleApi(req, res, pathname) {
       const text = await extractResumeText(req.file);
       const atsScore = calculateATS(text);
       const missingSkills = findMissingSkills(text);
+      const targetRole = req.body?.targetRole || detectTargetRole(text);
+      const recommendedTopics = mapSkillsToRoadmapTopics(missingSkills, targetRole);
       const suggestions = getSuggestions(atsScore);
 
       return sendJson(res, 200, {
         atsScore,
         missingSkills,
+        targetRole,
+        recommendedTopics,
         suggestions,
       });
     } catch (error) {
@@ -893,53 +894,43 @@ async function handleApi(req, res, pathname) {
       const payload = await readJsonBody(req);
       const { repoUrl } = payload;
 
-      if (!repoUrl || !repoUrl.includes('github.com')) {
-        return sendJson(res, 400, { error: 'Please provide a valid GitHub repository URL.' });
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(repoUrl);
+      } catch {
+        return sendJson(res, 400, { error: 'Please provide a valid repository URL.' });
       }
 
-      const provider = VCSFactory.getProvider(repoUrl);
-      const workflows = await provider.getNormalizedWorkflows();
+      const validHostnames = [
+        'github.com',
+        'www.github.com',
+        'gitlab.com',
+        'www.gitlab.com',
+        'bitbucket.org',
+        'www.bitbucket.org',
+      ];
 
-      if (workflows.length === 0) {
-        return sendJson(res, 200, {
-          score: 0,
-          workflowsAnalyzed: 0,
-          details: { hasDependencies: false, hasTests: false },
-          recommendations: [
-            'No GitHub Actions workflows found in .github/workflows. Add a CI/CD pipeline to automate testing.',
-          ],
+      if (
+        !['http:', 'https:'].includes(parsedUrl.protocol) ||
+        !validHostnames.includes(parsedUrl.hostname.toLowerCase())
+      ) {
+        return sendJson(res, 400, {
+          error: 'Please provide a valid GitHub, GitLab, or Bitbucket repository URL.',
         });
       }
 
-      let bestScore = -1;
-      let overallDeps = false;
-      let overallTests = false;
+      const provider = VCSFactory.getProvider(repoUrl);
 
-      for (const wf of workflows) {
-        const result = analyzeWorkflow(wf.commands);
-        if (result.score > bestScore) bestScore = result.score;
-        if (result.hasDependencies) overallDeps = true;
-        if (result.hasTests) overallTests = true;
-      }
-
-      const recommendations = [];
-      if (bestScore === 20)
-        recommendations.push('Workflows found, but they contain no functional jobs or steps.');
-      if (bestScore === 50)
-        recommendations.push("Add explicit testing commands (like 'npm test') to your workflow.");
-      if (bestScore === 75)
-        recommendations.push('Ensure dependencies are installed securely before running tests.');
-      if (bestScore === 100)
-        recommendations.push('Excellent! Fully functional CI/CD pipeline detected.');
+      const result = await analyzeRepository(provider);
 
       return sendJson(res, 200, {
-        score: bestScore,
-        workflowsAnalyzed: workflows.length,
-        details: {
-          hasDependencies: overallDeps,
-          hasTests: overallTests,
-        },
-        recommendations,
+        overallScore: result.overallScore,
+        ciCd: result.ciCd,
+        codeQuality: result.codeQuality,
+        security: result.security,
+        documentation: result.documentation,
+        recommendations: result.recommendations,
+        warnings: result.warnings,
       });
     } catch (err) {
       console.error('Repository analysis error:', err.message);
@@ -1090,6 +1081,9 @@ async function handleApi(req, res, pathname) {
         id: `guest-${guestId}`,
         name: 'Guest',
         email: `guest-${guestId}@local`,
+        // Elo rating defaults for Elo-based multiplayer battles
+        rating: 1200,
+        ratingHistory: [],
       };
       const token = createAccessToken(guestUser);
       const refreshToken = await createRefreshToken(guestUser);
@@ -1163,6 +1157,9 @@ async function handleApi(req, res, pathname) {
         emailVerified: !emailConfigured,
         verifyToken,
         verifyTokenExpiry: emailConfigured ? Date.now() + 24 * 60 * 60 * 1000 : null,
+        // Elo rating system for multiplayer coding battles
+        rating: 1200,
+        ratingHistory: [],
       };
       await createUser(user);
 
@@ -1577,6 +1574,18 @@ async function handleApi(req, res, pathname) {
         { action: 'Joined Algo Infinity Verse', date: new Date().toISOString().slice(0, 10) },
       ],
     };
+
+    // Elo rating + tier derived from persisted user record
+    const rating = persisted?.rating ?? 1200;
+    // Compute tier using local thresholds (must match backend/utils/eloRating.js)
+    let tier = 'Novice';
+    if (rating >= 1800) tier = 'Master';
+    else if (rating >= 1600) tier = 'Expert';
+    else if (rating >= 1400) tier = 'Advanced';
+    else if (rating >= 1200) tier = 'Intermediate';
+
+    userData.stats.rating = rating;
+    userData.stats.tier = tier;
 
     return sendJson(res, 200, { success: true, data: userData });
   }
@@ -2573,6 +2582,73 @@ async function handleApi(req, res, pathname) {
       return sendJson(res, 400, { error: 'Invalid JSON body.' });
     }
 
+    const { codeA, codeB, inputSizes } = payload;
+
+    if (typeof codeA !== 'string' || typeof codeB !== 'string' || !codeA || !codeB) {
+      return sendJson(res, 400, {
+        error: 'Both codeA and codeB are required and must be strings.',
+      });
+    }
+
+    if (!inputSizes || !Array.isArray(inputSizes) || !inputSizes.every(Number.isInteger)) {
+      return sendJson(res, 400, {
+        error: 'inputSizes is required and must be an array of integers.',
+      });
+    }
+
+    if (inputSizes.length > 8) {
+      return sendJson(res, 400, { error: 'cannot exceed 8 sizes' });
+    }
+
+    try {
+      const results = [];
+      for (const N of inputSizes) {
+        const resA = await _runInChild(codeA, N);
+        if (!resA.success) {
+          return sendJson(res, 400, { error: resA.error });
+        }
+
+        const resB = await _runInChild(codeB, N);
+        if (!resB.success) {
+          return sendJson(res, 400, { error: resB.error });
+        }
+
+        results.push({
+          inputSize: N,
+          timeA: resA.timeMs,
+          timeB: resB.timeMs,
+          memA: resA.memKb,
+          memB: resB.memKb,
+        });
+      }
+
+      return sendJson(res, 200, { success: true, results });
+    } catch (err) {
+      console.error('Complexity profiling error:', err);
+      return sendJson(res, 500, { error: 'Failed to profile code complexity.' });
+    }
+  }
+
+  // ── AI Code Reviewer ──────────────────────────────────────────────────────
+  if (pathname === '/api/ai/review' && req.method === 'POST') {
+    if (
+      !applyRateLimit(
+        req,
+        res,
+        sdlcAdvisorLimiter,
+        'Too many review requests. Please try again later.'
+      )
+    ) {
+      return;
+    }
+
+    let payload;
+    try {
+      payload = await readJsonBody(req);
+    } catch {
+      return sendJson(res, 400, { error: 'Invalid JSON body.' });
+    }
+
     const problemName = String(payload.problemName || '').trim();
     const problemDescription = String(payload.problemDescription || '').trim();
     const code = String(payload.code || '');
@@ -2702,8 +2778,26 @@ CRITICAL RULES:
   // ── Leaderboard ──────────────────────────────────────────────────────────
   if (pathname === '/api/leaderboard' && req.method === 'GET') {
     try {
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const parsedPage = parseInt(url.searchParams.get('page'), 10);
+      const page = Number.isNaN(parsedPage) ? 1 : Math.max(parsedPage, 1);
+      const parsedLimit = parseInt(url.searchParams.get('limit'), 10);
+      const limit = Number.isNaN(parsedLimit) ? 10 : Math.min(Math.max(parsedLimit, 1), 50);
+      const period = url.searchParams.get('period') || 'all';
+      const offset = (page - 1) * limit;
+
+      const now = Date.now();
       const users = await readUsers();
-      const leaders = users
+      const allLeaders = users
+        .filter((u) => {
+          if (period === 'all') return true;
+          const ts = u.progressUpdatedAt || u.updatedAt || u.createdAt;
+          if (!ts) return false;
+          const elapsed = now - new Date(ts).getTime();
+          if (period === 'week') return elapsed <= 7 * 24 * 60 * 60 * 1000;
+          if (period === 'month') return elapsed <= 30 * 24 * 60 * 60 * 1000;
+          return true;
+        })
         .map((u) => ({
           id: u.id || u.email,
           name: u.name || 'Learner',
@@ -2711,14 +2805,34 @@ CRITICAL RULES:
           level: u.level || 1,
           avatar: u.avatar || '🚀',
         }))
-        .sort((a, b) => b.xp - a.xp)
-        .slice(0, 50);
+        .sort((a, b) => b.xp - a.xp || a.name.localeCompare(b.name))
+        .map((u, index) => ({ ...u, rank: index + 1 }));
+
+      const totalUsers = allLeaders.length;
+      const totalPages = Math.ceil(totalUsers / limit);
+      const paginatedUsers = allLeaders.slice(offset, offset + limit);
 
       const session = getSession(req);
-      return sendJson(res, 200, { leaders, currentUserId: session?.sub || null });
+      return sendJson(res, 200, {
+        leaders: paginatedUsers,
+        currentUserId: session?.sub || null,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalUsers,
+          pageSize: limit,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
+        period,
+      });
     } catch (err) {
       console.error('Leaderboard error:', err);
-      return sendJson(res, 200, { leaders: [], currentUserId: null });
+      return sendJson(res, 200, {
+        leaders: [],
+        currentUserId: null,
+        pagination: { totalUsers: 0, totalPages: 1 },
+      });
     }
   }
 
@@ -2800,6 +2914,10 @@ function resolveStaticPath(pathname) {
     '/practice.html': 'pages/practice/problems.html',
     '/support-page': 'support-page/index.html',
     '/support-page/': 'support-page/index.html',
+    '/leaderboard': 'pages/leaderboard/leaderboard.html',
+    '/leaderboard.html': 'pages/leaderboard/leaderboard.html',
+    '/leaderboard/preview': 'pages/leaderboard/preview.html',
+    '/leaderboard/preview.html': 'pages/leaderboard/preview.html',
   };
   let mapped = routes[pathname];
   if (!mapped) {
@@ -3575,7 +3693,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('battle-submit', (data) => {
+  socket.on('battle-submit', async (data) => {
     const valid = validateSocketInput(data, {
       battleId: { type: 'string', required: true },
       userId: { type: 'string', required: true },
@@ -3607,6 +3725,107 @@ io.on('connection', (socket) => {
       battle.status = 'completed';
       battle.winner = valid.userId;
       delete battle.updates;
+
+      // Persist Elo rating updates
+      try {
+        const { applyElo } = await import('./backend/utils/eloRating.js');
+
+        const participants = Object.keys(battle.participants || {});
+        const winnerId = valid.userId;
+        const loserId = participants.find((id) => id !== winnerId) || null;
+
+        if (loserId) {
+          const users = await readUsers();
+          const winnerIdx = users.findIndex((u) => u.id === winnerId);
+          const loserIdx = users.findIndex((u) => u.id === loserId);
+
+          if (winnerIdx !== -1 && loserIdx !== -1) {
+            users[winnerIdx].rating = Number(users[winnerIdx].rating ?? 1200);
+            users[winnerIdx].ratingHistory = Array.isArray(users[winnerIdx].ratingHistory)
+              ? users[winnerIdx].ratingHistory
+              : [];
+
+            users[loserIdx].rating = Number(users[loserIdx].rating ?? 1200);
+            users[loserIdx].ratingHistory = Array.isArray(users[loserIdx].ratingHistory)
+              ? users[loserIdx].ratingHistory
+              : [];
+
+            const winnerBefore = users[winnerIdx].rating;
+            const loserBefore = users[loserIdx].rating;
+
+            // Elo outcomes (no draws in current battle flow)
+            const kFactor = 32;
+            const winnerRes = applyElo({
+              playerRating: winnerBefore,
+              opponentRating: loserBefore,
+              score: 1,
+              kFactor,
+            });
+            const loserRes = applyElo({
+              playerRating: loserBefore,
+              opponentRating: winnerBefore,
+              score: 0,
+              kFactor,
+            });
+
+            users[winnerIdx].rating = winnerRes.newRating;
+            users[loserIdx].rating = loserRes.newRating;
+
+            const timestamp = new Date().toISOString();
+            const battleId = battle.id || valid.battleId;
+
+            const winnerEntry = {
+              battleId,
+              opponentId: loserId,
+              outcome: 'win',
+              before: winnerBefore,
+              after: users[winnerIdx].rating,
+              delta: users[winnerIdx].rating - winnerBefore,
+              expected: winnerRes.expected,
+              kFactor,
+              timestamp,
+              opponentExpected: loserRes.expected,
+            };
+
+            const loserEntry = {
+              battleId,
+              opponentId: winnerId,
+              outcome: 'loss',
+              before: loserBefore,
+              after: users[loserIdx].rating,
+              delta: users[loserIdx].rating - loserBefore,
+              expected: loserRes.expected,
+              kFactor,
+              timestamp,
+              opponentExpected: winnerRes.expected,
+            };
+
+            users[winnerIdx].ratingHistory.push(winnerEntry);
+            users[loserIdx].ratingHistory.push(loserEntry);
+
+            // Cap history to prevent unbounded growth
+            const MAX_HISTORY = 2000;
+            if (users[winnerIdx].ratingHistory.length > MAX_HISTORY) {
+              users[winnerIdx].ratingHistory.splice(
+                0,
+                users[winnerIdx].ratingHistory.length - MAX_HISTORY
+              );
+            }
+            if (users[loserIdx].ratingHistory.length > MAX_HISTORY) {
+              users[loserIdx].ratingHistory.splice(
+                0,
+                users[loserIdx].ratingHistory.length - MAX_HISTORY
+              );
+            }
+
+            await writeUsers(users);
+          }
+        }
+      } catch (e) {
+        // Elo updates should never break battle completion.
+        console.error('Elo update failed:', e);
+      }
+
       io.to(`battle_${valid.battleId}`).emit('battle-over', {
         winnerId: valid.userId,
         winnerName: battle.participants[valid.userId].name,

@@ -16,6 +16,17 @@ function publicUser(user) {
   };
 }
 
+function isUserActiveInPeriod(user, period) {
+  if (period === 'all') return true;
+  const ts = user.progressUpdatedAt || user.updatedAt || user.createdAt;
+  if (!ts) return false;
+  const updated = new Date(ts).getTime();
+  const now = Date.now();
+  if (period === 'week') return now - updated <= 7 * 24 * 60 * 60 * 1000;
+  if (period === 'month') return now - updated <= 30 * 24 * 60 * 60 * 1000;
+  return true;
+}
+
 let cachedUsers = null;
 let cacheTime = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -35,6 +46,9 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
+    // Parse period filter (passed through to data sources that support it)
+    const period = req.query.period || 'all';
+
     // Parse pagination parameters (bounded to match the convention used by
     // other paginated endpoints, e.g. api/battles.js and api/quiz-results.js)
     const MAX_PAGE_SIZE = 50;
@@ -48,28 +62,32 @@ export default async function handler(req, res) {
     const cookies = parseCookies(req.headers.cookie || '');
     const session = verifySessionToken(cookies[SESSION_COOKIE]);
 
-    // Try fetching from Redis Sorted Set first
-    const cachedData = await getLeaderboardData({ page, limit });
-    if (cachedData) {
-      const totalUsers = cachedData.totalUsers;
-      const totalPages = Math.ceil(totalUsers / limit);
-      return res.status(200).json({
-        leaders: cachedData.leaders,
-        currentUserId: session?.sub || null,
-        pagination: {
-          currentPage: page,
-          totalPages,
-          totalUsers,
-          pageSize: limit,
-          hasNext: page < totalPages,
-          hasPrev: page > 1,
-        },
-      });
+    // Try fetching from Redis Sorted Set first (only for all-time, since Redis
+    // stores total XP and cannot filter by time period)
+    if (period === 'all') {
+      const cachedData = await getLeaderboardData({ page, limit, period });
+      if (cachedData) {
+        const totalUsers = cachedData.totalUsers;
+        const totalPages = Math.ceil(totalUsers / limit);
+        return res.status(200).json({
+          leaders: cachedData.leaders,
+          currentUserId: session?.sub || null,
+          pagination: {
+            currentPage: page,
+            totalPages,
+            totalUsers,
+            pageSize: limit,
+            hasNext: page < totalPages,
+            hasPrev: page > 1,
+          },
+        });
+      }
     }
 
-    // Fallback: Get all users and sort
+    // Fallback: Get all users, filter by period, and sort
     const allUsers = await readUsers();
     const sortedUsers = allUsers
+      .filter((u) => isUserActiveInPeriod(u, period))
       .map(publicUser)
       .sort((a, b) => b.xp - a.xp || a.name.localeCompare(b.name))
       .map((user, index) => ({ ...user, rank: index + 1 }));
@@ -95,6 +113,8 @@ export default async function handler(req, res) {
         hasNext: currentPage < totalPages,
         hasPrev: currentPage > 1,
       },
+      // Echo requested period so the client can confirm
+      period,
     });
   } catch (error) {
     console.error(error);

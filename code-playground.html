@@ -8,6 +8,7 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
 
@@ -487,31 +488,37 @@
             <div class="value" id="profAvgTime">- ms</div>
           </div>
           <div class="stat-box">
-            <div class="label">Fastest Run</div>
+            <div class="label">Fastest Run (N=10)</div>
             <div class="value" id="profFastest">- ms</div>
           </div>
           <div class="stat-box">
-            <div class="label">Slowest Run</div>
+            <div class="label">Slowest Run (N=5000)</div>
             <div class="value" id="profSlowest">- ms</div>
           </div>
         </div>
-        <div class="chart-container">
-          <canvas id="profilerChart" width="600" height="300"></canvas>
+        <div class="chart-container" style="position: relative; height: 320px; margin-bottom: 15px">
+          <canvas id="profilerChart"></canvas>
         </div>
-        <div style="text-align: right">
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <span id="profilerStatus" style="font-size: 0.85rem; color: var(--text-muted)"
+            >Execution benchmark datasets: N = 10, 100, 1000, 5000</span
+          >
           <button
             id="rerunProfileBtn"
             style="
-              background: #2563eb;
+              background: linear-gradient(135deg, var(--secondary-color), #60a5fa);
               color: white;
               border: none;
-              padding: 10px 20px;
-              border-radius: 6px;
+              padding: 10px 18px;
+              border-radius: 8px;
               cursor: pointer;
-              font-weight: bold;
+              font-weight: 600;
+              display: flex;
+              align-items: center;
+              gap: 6px;
             "
           >
-            Rerun Profiler
+            <i class="fas fa-sync"></i> Rerun Profiler
           </button>
         </div>
       </div>
@@ -526,10 +533,16 @@
           <option value="python">Python</option>
           <option value="java">Java</option>
           <option value="cpp">C++</option>
+          <option value="lisp">Common Lisp</option>
+          <option value="groovy">Groovy</option>
+          <option value="vbnet">VB.NET</option>
+          <option value="fsharp">F#</option>
+          <option value="prolog">Prolog</option>
+          <option value="elixir">Elixir</option>
         </select>
         <button type="button" id="runBtn" aria-label="Run code">▶ Run</button>
         <button type="button" id="profileBtn" aria-label="Profile time complexity">
-          ⏱️ Profile
+          <i class="fas fa-chart-line"></i> Profile Complexity
         </button>
         <button type="button" id="reviewBtn" aria-label="Request AI review">
           <i class="fas fa-robot"></i> Request AI Review
@@ -569,6 +582,12 @@
         python: `def solve(input):\n    print(input)\n    return input`,
         java: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello");\n    }\n}`,
         cpp: `#include <iostream>\nusing namespace std;\nint main() {\n    cout << "Hello" << endl;\n    return 0;\n}`,
+        lisp: `(defun solve ()\n  (format t "Hello, World!~%")\n  t)\n\n(solve)`,
+        groovy: `// Groovy Code Playground\ndef solve(input) {\n    println "Input: \${input}"\n    return input\n}\n\nsolve("Hello from Groovy")`,
+        vbnet: `' VB.NET Code Playground\nImports System\n\nModule Program\n    Sub Main()\n        Console.WriteLine("Hello from VB.NET")\n    End Sub\nEnd Module`,
+        fsharp: `// F# Code Playground\nlet solve input =\n    printfn "%A" input\n    input\n\n[<EntryPoint>]\nlet main argv =\n    solve "Hello from F#"\n    0`,
+        prolog: `% Prolog Code Playground\nparent(john, bob).\nparent(bob, charlie).\nancestor(X, Y) :- parent(X, Y).\nancestor(X, Y) :- parent(X, Z), ancestor(Z, Y).`,
+        elixir: `# Elixir Code Playground\ndefmodule Solver do\n  def solve(input) do\n    IO.puts("Input: #{input}")\n    input\n  end\nend\n\nSolver.solve("Hello from Elixir")`,
       };
 
       let editor;
@@ -617,7 +636,18 @@
       loadEditor();
 
       document.getElementById('lang').addEventListener('change', function () {
-        const modeMap = { javascript: 'javascript', python: 'python', java: 'java', cpp: 'cpp' };
+        const modeMap = {
+          javascript: 'javascript',
+          python: 'python',
+          java: 'java',
+          cpp: 'cpp',
+          lisp: 'lisp',
+          groovy: 'groovy',
+          vbnet: 'vb',
+          fsharp: 'fsharp',
+          prolog: 'prolog',
+          elixir: 'elixir',
+        };
         const lang = modeMap[this.value];
         if (editor && monacoInstance) {
           const model = editor.getModel();
@@ -655,95 +685,135 @@
         output.textContent += '\n' + text;
       }
 
+      let profilerChartInstance = null;
+
       function drawProfilerChart(canvas, results) {
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (!results.length) return;
-
-        const padding = 50;
-        const maxN = Math.max(...results.map((r) => r.N));
-        const maxTime = Math.max(...results.map((r) => r.time));
-
-        const scaleX = (canvas.width - 2 * padding) / (maxN || 1);
-        const scaleY = (canvas.height - 2 * padding) / (maxTime || 1);
-
-        // Draw Grid & Axes
-        ctx.beginPath();
-        ctx.strokeStyle = document.documentElement.classList.contains('light-mode')
-          ? '#e2e8f0'
-          : '#334155';
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= 5; i++) {
-          const y = canvas.height - padding - (i / 5) * (canvas.height - 2 * padding);
-          ctx.moveTo(padding, y);
-          ctx.lineTo(canvas.width - padding, y);
-
-          // Y-axis labels
-          ctx.fillStyle = '#64748b';
-          ctx.font = '10px Arial';
-          ctx.textAlign = 'right';
-          ctx.fillText(((maxTime * i) / 5).toFixed(1) + 'ms', padding - 10, y + 3);
+        if (!canvas) return;
+        if (!window.Chart) {
+          console.warn('Chart.js is not loaded, falling back to basic rendering.');
+          return;
         }
-        ctx.stroke();
 
-        ctx.beginPath();
-        ctx.strokeStyle = '#64748b';
-        ctx.lineWidth = 2;
-        ctx.moveTo(padding, padding);
-        ctx.lineTo(padding, canvas.height - padding);
-        ctx.lineTo(canvas.width - padding, canvas.height - padding);
-        ctx.stroke();
+        const isLight = document.documentElement.classList.contains('light-mode');
+        const textColor = isLight ? '#0f172a' : '#f8fafc';
+        const gridColor = isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)';
 
-        // X-axis labels
-        results.forEach((r) => {
-          const x = padding + r.N * scaleX;
-          ctx.fillStyle = '#64748b';
-          ctx.font = '10px Arial';
-          ctx.textAlign = 'center';
-          ctx.fillText(r.N, x, canvas.height - padding + 20);
-        });
+        const labels = results.map((r) => `N=${r.N}`);
+        const empiricalData = results.map((r) => r.time);
+        const maxN = results[results.length - 1].N;
+        const maxTime = Math.max(0.001, results[results.length - 1].time);
 
-        // Draw line
-        ctx.beginPath();
-        ctx.strokeStyle = '#2563eb';
-        ctx.lineWidth = 3;
-        results.forEach((r, i) => {
-          const x = padding + r.N * scaleX;
-          const y = canvas.height - padding - r.time * scaleY;
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
+        const refFns = {
+          'O(1)': (n) => 1,
+          'O(log N)': (n) => Math.log2(Math.max(1, n)),
+          'O(N)': (n) => n,
+          'O(N log N)': (n) => n * Math.log2(Math.max(1, n)),
+          'O(N²)': (n) => n * n,
+        };
 
-        // Draw points
-        results.forEach((r) => {
-          const x = padding + r.N * scaleX;
-          const y = canvas.height - padding - r.time * scaleY;
-          ctx.beginPath();
-          ctx.fillStyle = '#2563eb';
-          ctx.arc(x, y, 6, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = 'white';
-          ctx.arc(x, y, 3, 0, Math.PI * 2);
-          ctx.fill();
+        const refColors = {
+          'O(1)': '#94a3b8',
+          'O(log N)': '#3b82f6',
+          'O(N)': '#10b981',
+          'O(N log N)': '#f59e0b',
+          'O(N²)': '#ef4444',
+        };
+
+        const datasets = [
+          {
+            label: 'Your Code (Empirical)',
+            data: empiricalData,
+            borderColor: '#8b5cf6',
+            backgroundColor: 'rgba(139, 92, 246, 0.2)',
+            borderWidth: 3,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            tension: 0.2,
+            fill: false,
+          },
+        ];
+
+        for (const [name, fn] of Object.entries(refFns)) {
+          const scale = maxTime / (fn(maxN) || 1);
+          const curveData = results.map((r) => Math.max(0, fn(r.N) * scale));
+          datasets.push({
+            label: name,
+            data: curveData,
+            borderColor: refColors[name],
+            borderDash: [4, 4],
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false,
+          });
+        }
+
+        if (profilerChartInstance) {
+          profilerChartInstance.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+        profilerChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: datasets,
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: {
+                  color: textColor,
+                  font: { family: 'Outfit, Inter, sans-serif', size: 11 },
+                  usePointStyle: true,
+                  boxWidth: 8,
+                },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const val =
+                      typeof context.raw === 'number' ? context.raw.toFixed(3) : context.raw;
+                    return `${context.dataset.label}: ${val} ms`;
+                  },
+                },
+              },
+            },
+            scales: {
+              x: {
+                grid: { color: gridColor },
+                ticks: { color: textColor },
+                title: { display: true, text: 'Input Size (N)', color: textColor },
+              },
+              y: {
+                grid: { color: gridColor },
+                ticks: { color: textColor },
+                title: { display: true, text: 'Execution Time (ms)', color: textColor },
+                beginAtZero: true,
+              },
+            },
+          },
         });
       }
 
       function estimateComplexity(results) {
-        if (results.length < 2) return 'Unknown';
+        if (results.length < 2) return 'O(1)';
         const shapes = {
           'O(1)': (n) => 1,
-          'O(log n)': (n) => Math.log2(n || 1),
-          'O(n)': (n) => n,
-          'O(n log n)': (n) => n * Math.log2(n || 1),
-          'O(n²)': (n) => n * n,
-          'O(n³)': (n) => n * n * n,
+          'O(log N)': (n) => Math.log2(n || 1),
+          'O(N)': (n) => n,
+          'O(N log N)': (n) => n * Math.log2(n || 1),
+          'O(N²)': (n) => n * n,
+          'O(N³)': (n) => n * n * n,
+          'O(2ᴺ)': (n) => Math.pow(2, Math.min(n, 30)),
         };
 
-        let bestFit = 'Unknown';
+        let bestFit = 'O(N)';
         let minError = Infinity;
         const maxN = results[results.length - 1].N;
-        const maxTime = results[results.length - 1].time || 0.001; // prevent /0
+        const maxTime = results[results.length - 1].time || 0.001;
 
         for (const [name, fn] of Object.entries(shapes)) {
           let error = 0;
@@ -751,7 +821,7 @@
 
           for (const r of results) {
             const expected = fn(r.N) * scale;
-            error += Math.pow((r.time - expected) / maxTime, 2);
+            error += Math.pow((r.time - expected) / Math.max(0.001, maxTime), 2);
           }
 
           if (error < minError) {
@@ -765,22 +835,22 @@
       async function runProfiler() {
         const lang = document.getElementById('lang').value;
         if (lang !== 'javascript') {
-          alert('The Interactive Profiler currently only supports JavaScript in the browser.');
+          alert('The Interactive Profiler currently supports JavaScript in the browser.');
           return;
         }
 
         if (!editor) return;
         const code = editor.getValue();
-        if (!code.trim()) {
+        if (!code || !code.trim()) {
           alert('Please write some code to profile.');
           return;
         }
 
         const modal = document.getElementById('profilerModal');
-        modal.style.display = 'flex';
+        if (modal) modal.style.display = 'flex';
 
-        const sizes = [100, 1000, 10000, 100000];
-        const results = [];
+        const statusEl = document.getElementById('profilerStatus');
+        if (statusEl) statusEl.textContent = 'Running profiler against N = 10, 100, 1000, 5000...';
 
         document.getElementById('profComplexity').textContent = 'Profiling...';
         document.getElementById('profAvgTime').textContent = '- ms';
@@ -793,57 +863,96 @@
         console.log = () => {};
 
         try {
-          const solveFn = new Function(
-            '"use strict";\n' + code + '\nreturn (typeof solve !== "undefined" ? solve : null);'
-          )();
-
-          if (typeof solveFn !== 'function') {
-            throw new Error(
-              'Could not find a function named "solve". Please ensure your code exports or declares a solve() function.'
-            );
+          let solveFn;
+          try {
+            solveFn = new Function(
+              '"use strict";\n' +
+                code +
+                '\nreturn (typeof solve !== "undefined" ? solve : (typeof solution !== "undefined" ? solution : (typeof main !== "undefined" ? main : null)));'
+            )();
+          } catch (e) {
+            throw new Error('Syntax or compilation error: ' + e.message);
           }
 
-          let previousTime = 0;
-          for (const N of sizes) {
-            const input = Array.from({ length: N }, () => Math.floor(Math.random() * 1000));
+          if (typeof solveFn !== 'function') {
+            try {
+              solveFn = new Function('input', '"use strict";\n' + code);
+            } catch (e) {
+              throw new Error(
+                'Could not find or construct executable function. Ensure code defines a solve() function.'
+              );
+            }
+          }
 
-            if (N === 100) {
-              try {
+          const sampleArr = Array.from({ length: 10 }, () => Math.floor(Math.random() * 100));
+          let isArgArray = true;
+
+          try {
+            solveFn([...sampleArr]);
+          } catch (errArr) {
+            try {
+              solveFn(10);
+              isArgArray = false;
+            } catch (errNum) {
+              throw new Error('Execution error on sample input: ' + errArr.message);
+            }
+          }
+
+          const sizes = [10, 100, 1000, 5000];
+          const results = [];
+
+          for (const N of sizes) {
+            if (statusEl) statusEl.textContent = `Benchmarking size N = ${N}...`;
+            const input = isArgArray
+              ? Array.from({ length: N }, () => Math.floor(Math.random() * 1000))
+              : N;
+
+            const iterations = N <= 100 ? 5 : 1;
+            const start = performance.now();
+            for (let i = 0; i < iterations; i++) {
+              if (isArgArray) {
                 solveFn([...input]);
-              } catch (err) {
-                throw new Error('Error executing solve(): ' + err.message);
+              } else {
+                solveFn(input);
               }
             }
-
-            const start = performance.now();
-            solveFn(input);
             const end = performance.now();
-            const timeTaken = Math.max(0.01, end - start);
+            const timeTaken = Math.max(0.001, (end - start) / iterations);
 
             results.push({ N, time: timeTaken });
-            previousTime = timeTaken;
 
-            await new Promise((r) => setTimeout(r, 10));
+            await new Promise((r) => setTimeout(r, 15));
 
-            if (timeTaken > 800 && N !== sizes[sizes.length - 1]) {
+            if (timeTaken > 1500 && N !== sizes[sizes.length - 1]) {
+              if (statusEl)
+                statusEl.textContent = `Stopped profiling at N = ${N} due to timeout (>1.5s).`;
               break;
             }
           }
 
-          const avgTime = results.reduce((acc, r) => acc + r.time, 0) / results.length;
-          const fastest = Math.min(...results.map((r) => r.time));
-          const slowest = Math.max(...results.map((r) => r.time));
+          if (statusEl && results.length === sizes.length) {
+            statusEl.textContent =
+              'Profiling complete across generated datasets (N = 10, 100, 1000, 5000).';
+          }
+
+          const times = results.map((r) => r.time);
+          const avgTime = times.reduce((acc, t) => acc + t, 0) / times.length;
+          const fastest = Math.min(...times);
+          const slowest = Math.max(...times);
           const complexity = estimateComplexity(results);
 
           document.getElementById('profComplexity').textContent = complexity;
-          document.getElementById('profAvgTime').textContent = avgTime.toFixed(2) + ' ms';
-          document.getElementById('profFastest').textContent = fastest.toFixed(2) + ' ms';
-          document.getElementById('profSlowest').textContent = slowest.toFixed(2) + ' ms';
+          document.getElementById('profAvgTime').textContent = avgTime.toFixed(3) + ' ms';
+          document.getElementById('profFastest').textContent = fastest.toFixed(3) + ' ms';
+          document.getElementById('profSlowest').textContent = slowest.toFixed(3) + ' ms';
 
           const canvas = document.getElementById('profilerChart');
-          drawProfilerChart(canvas, results);
+          if (canvas) {
+            drawProfilerChart(canvas, results);
+          }
         } catch (e) {
           document.getElementById('profComplexity').textContent = 'Error';
+          if (statusEl) statusEl.textContent = 'Profiling error: ' + e.message;
           alert(e.message || 'Error during profiling');
           console.error(e);
         } finally {

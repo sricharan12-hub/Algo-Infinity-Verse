@@ -12,9 +12,15 @@ import path from 'path';
  * @param {number} params.limit
  * @returns {Promise<{leaders: Array, totalUsers: number}|null>}
  */
-export async function getLeaderboardData({ page = 1, limit = 10 }) {
+export async function getLeaderboardData({ page = 1, limit = 10, period = 'all' }) {
   if (!redisAvailable || !redisClient) {
     return null; // Fallback will handle
+  }
+
+  // Redis sorted sets store total XP and cannot filter by time period,
+  // so skip Redis for non-all-time queries.
+  if (period !== 'all') {
+    return null;
   }
 
   try {
